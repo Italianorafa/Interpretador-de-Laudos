@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Softplan CDSS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="background-color: #f4f7fb;">
+    <div class="login-box" style="margin: auto; margin-top: 10vh;">
+        <h2 id="loginTitle">Acesso Restrito</h2>
+        
+        <div class="clinical-section" style="margin-bottom: 15px;">
+            <input type="email" id="authEmail" placeholder="E-mail profissional">
+            <input type="password" id="authSenha" placeholder="Palavra-passe (Mín. 6 caracteres)">
+            <input type="text" id="authCrm" class="hidden" placeholder="Seu CRM (Ex: 12345-SP)">
+        </div>
+        
+        <button id="btnEntrar" class="action-btn">Acessar Sistema</button>
+        <p id="toggleAuthMode" class="auth-link">Não tem conta? <strong>Registe-se aqui</strong></p>
+        
+        <div id="authLoading" class="hidden" style="margin-top: 15px;">
+            <p class="loading-text">A processar...</p>
+        </div>
+    </div>
+
+    <!-- Scripts na ordem correta -->
+    <script src="config.js"></script>
+    <script src="login.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Pacientes - Softplan CDSS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header class="saas-header">
+        <div class="header-logo">
+            <span class="logo-icon">⚕️</span><span class="logo-text">Softplan<strong>CDSS</strong></span>
+        </div>
+        <nav class="header-nav">
+            <a href="consulta.html" class="nav-item" style="text-decoration: none;">Nova Consulta</a>
+            <a href="pacientes.html" class="nav-item active" style="text-decoration: none;">Meus Pacientes</a>
+        </nav>
+        <div class="header-user">
+            <div class="user-info">
+                <span id="medicoLogadoName" class="user-name">Carregando...</span>
+                <span class="user-crm">CRM: <span id="medicoLogadoCrm">---</span></span>
+            </div>
+            <div class="user-avatar">👨‍⚕️</div>
+            <button id="btnSair" class="btn-logout">Sair</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <main>
+            <!-- LISTA -->
+            <div id="listaPacientesContainer">
+                <div class="section-header">
+                    <h2>Meus Pacientes</h2>
+                    <a href="consulta.html" class="btn-success" style="text-decoration: none;">+ Nova Consulta</a>
+                </div>
+                <div class="table-container">
+                    <table class="saas-table">
+                        <thead>
+                            <tr>
+                                <th>Nome do Paciente</th>
+                                <th>Data do Último Retorno</th>
+                                <th style="text-align: center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaPacientesCrud"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TIMELINE (Oculta por padrão) -->
+            <div id="detalhesPacienteContainer" class="hidden">
+                <div class="section-header" style="flex-direction: column; align-items: flex-start; gap: 15px;">
+                    <button id="btnVoltarPacientes" class="btn-secondary">← Voltar para Lista</button>
+                    <h2 id="tituloNomePaciente" style="color: var(--primary); font-size: 24px;">Prontuário</h2>
+                </div>
+                <div id="timelineProntuario" class="timeline-wrapper"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts na ordem correta -->
+    <script src="config.js"></script>
+    <script src="pacientes.js"></script>
+</body>
+</html>

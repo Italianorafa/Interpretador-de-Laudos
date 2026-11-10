@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Consulta - Softplan CDSS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header class="saas-header">
+        <div class="header-logo">
+            <span class="logo-icon">⚕️</span><span class="logo-text">Softplan<strong>CDSS</strong></span>
+        </div>
+        <nav class="header-nav">
+            <a href="consulta.html" class="nav-item active" style="text-decoration: none;">Nova Consulta</a>
+            <a href="pacientes.html" class="nav-item" style="text-decoration: none;">Meus Pacientes</a>
+        </nav>
+        <div class="header-user">
+            <div class="user-info">
+                <span id="medicoLogadoName" class="user-name">Carregando...</span>
+                <span class="user-crm">CRM: <span id="medicoLogadoCrm">---</span></span>
+            </div>
+            <div class="user-avatar">👨‍⚕️</div>
+            <button id="btnSair" class="btn-logout">Sair</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <main>
+            <div class="clinical-section">
+                <label for="perfilInput">Nome do Paciente:</label>
+                <input type="text" id="perfilInput" placeholder="Ex: João da Silva">
+
+                <div class="label-com-botao">
+                    <label for="historicoInput">Dados Clínicos (Comorbidades, Medicamentos):</label>
+                    <div class="historico-tools">
+                        <input type="file" id="historicoPdfInput" accept="application/pdf" class="hidden">
+                        <button class="btn-secondary" id="btnExtrairHistorico" type="button">📄 Extrair de PDF</button>
+                        <span id="historicoLoading" class="hidden loading-text">A extrair dados...</span>
+                    </div>
+                </div>
+                <textarea id="historicoInput" class="small-text" placeholder="Ex: Hipertenso, faz uso de Losartana..."></textarea>
+
+                <label for="anamneseInput">Anamnese / Queixa Principal:</label>
+                <textarea id="anamneseInput" placeholder="Ex: Paciente relata dor torácica..."></textarea>
+                <!-- Sistema de Abas para Exames Complementares -->
+                <label>Exames Complementares (Opcional):</label>
+                <div class="tabs">
+                    <button class="tab-btn active" data-target="tab-texto" type="button">Digitar Resultados</button>
+                    <button class="tab-btn" data-target="tab-pdf" type="button">Anexar Laudo (PDF)</button>
+                </div>
+
+                <div id="tab-texto" class="tab-content active">
+                    <textarea id="laudoInput" class="small-text" placeholder="Cole aqui os resultados relevantes (ex: Troponina, ECG...)"></textarea>
+                </div>
+
+                <div id="tab-pdf" class="tab-content">
+                    <div class="file-upload-wrapper" onclick="document.getElementById('pdfInput').click()">
+                        <input type="file" id="pdfInput" accept="application/pdf" class="hidden">
+                        <p class="file-hint">📄 Clique para anexar o PDF do laudo laboratorial ou de imagem.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons-wrapper">
+                <button id="btnSalvarAnamnese" class="action-btn btn-outline" type="button">Salvar Apenas Anamnese</button>
+                <button id="btnAnalisar" class="action-btn" type="button">Analisar com IA e Salvar</button>
+            </div>
+            
+            <div id="loading" class="hidden"><p class="loading-text" style="text-align: center;">Processando...</p></div>
+            
+            <div id="resultadoBox" class="hidden">
+                <h2>Avaliação da IA:</h2>
+                <div id="resultadoTexto"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts na ordem correta -->
+    <script src="config.js"></script>
+    <script src="consulta.js"></script>
+</body>
+</html>
