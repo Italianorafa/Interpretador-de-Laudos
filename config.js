@@ -1,5 +1,5 @@
 // --- CHAVES DAS APIS ---
-const GEMINI_API_KEY = 'AQ.Ab8RN6ItgKAf6RcvPHl3JeKXQBB-u5w0WDFtwbvO4DEtJK1ezw'; 
+const GEMINI_API_KEY = ''; 
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${GEMINI_API_KEY}`;
 async function listarModelosDaIA() {
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
@@ -29,7 +29,7 @@ async function listarModelosDaIA() {
 listarModelosDaIA();
 
 const SUPABASE_URL = 'https://kxdpgmpgmnogmtqvsask.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_IPgFjiWNCGpdFjVIdaX_Rg_PHNHM6R9';
+const SUPABASE_KEY = '';
 
 // Inicia o cliente Supabase globalmente
 const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
