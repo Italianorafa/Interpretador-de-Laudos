@@ -14,8 +14,9 @@
         </div>
         
         <nav class="header-nav">
-            <!-- Adapte o "active" dependendo da página em que está -->
-            <a href="consulta.html" class="nav-item active" style="text-decoration: none;">Nova Consulta</a>
+            <!-- O 'active' mudará dependendo da página em que está -->
+            <a href="fila.html" class="nav-item" style="text-decoration: none;">Fila de Espera</a>
+            <a href="consulta.html" class="nav-item" style="text-decoration: none;">Nova Consulta</a>
             <a href="pacientes.html" class="nav-item" style="text-decoration: none;">Meus Pacientes</a>
         </nav>
 
@@ -66,9 +67,10 @@
                     <div style="grid-column: span 2;">
                         <label>Permissão do Sistema:</label>
                         <select id="acessoMembro" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px;">
-                            <option value="Total">Acesso Total (Criar Prontuários e Analisar IA)</option>
-                            <option value="Leitura">Acesso de Leitura (Apenas ver histórico)</option>
-                            <option value="Agendamento">Acesso Administrativo (Recepção)</option>
+                            <option value="Total">Médico (Acesso Total Clínico e Administrativo)</option>
+                            <option value="Administrativo">Administrativo (Gestão de Equipe e Recepção)</option>
+                            <option value="Agendamento">Recepção (Apenas Cadastro de Pacientes)</option>
+                            <option value="Leitura">Leitura (Apenas visualização de histórico)</option>
                         </select>
                     </div>
                 </div>

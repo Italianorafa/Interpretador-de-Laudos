@@ -1,35 +1,10 @@
 // --- CHAVES DAS APIS ---
-const GEMINI_API_KEY = ''; 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${GEMINI_API_KEY}`;
-async function listarModelosDaIA() {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
-    
-    try {
-        const resposta = await fetch(url);
-        const dados = await resposta.json();
-        
-        console.log("=== MODELOS DISPONÍVEIS PARA ESTA CHAVE ===");
-        if (dados.models) {
-            // Cria uma tabela bonita na consola com os nomes corretos
-            const listaMapeada = dados.models.map(m => ({
-                Nome_Exato: m.name.replace('models/', ''),
-                Descricao: m.description,
-                Versao: m.version
-            }));
-            console.table(listaMapeada);
-        } else {
-            console.error("Erro ao listar:", dados);
-        }
-    } catch (erro) {
-        console.error("Falha na ligação:", erro);
-    }
-}
+const GEMINI_API_KEY = 'AQ.Ab8RN6JsxAXR0IK4nA2_-e2S8fhNRU2G4ciFvEINhjoA0In9Ig'; 
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${GEMINI_API_KEY}`;
 
-// Executa a função automaticamente
-listarModelosDaIA();
 
 const SUPABASE_URL = 'https://kxdpgmpgmnogmtqvsask.supabase.co';
-const SUPABASE_KEY = '';
+const SUPABASE_KEY = 'sb_publishable_IPgFjiWNCGpdFjVIdaX_Rg_PHNHM6R9';
 
 // Inicia o cliente Supabase globalmente
 const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -87,18 +62,45 @@ async function verificarAutenticacao() {
     // SISTEMA RBAC (Controlo de Acesso)
     // ==========================================
     const paginaAtual = window.location.pathname.toLowerCase();
-    
+    const btnConfig = document.querySelector('.settings-icon'); // A engrenagem
+
+    // 1. Regras para RECEPÇÃO BÁSICA (Nível: Agendamento)
     if (nivelAcesso === 'Agendamento') {
-        // Se for recepção e tentar aceder a páginas médicas, expulsa para a recepção
+        if (paginaAtual.includes('consulta.html') || paginaAtual.includes('pacientes.html') || paginaAtual.includes('configuracoes.html')) {
+            window.location.href = 'recepcao.html';
+            return null;
+        }
+        // Esconde menus médicos e a engrenagem de configurações
+        document.querySelectorAll('.header-nav a:not([href="recepcao.html"])').forEach(el => el.style.display = 'none');
+        if (btnConfig) btnConfig.style.display = 'none';
+    } 
+    
+    // 2. Regras para GESTOR DA CLÍNICA (Nível: Administrativo)
+    else if (nivelAcesso === 'Administrativo') {
         if (paginaAtual.includes('consulta.html') || paginaAtual.includes('pacientes.html')) {
             window.location.href = 'recepcao.html';
             return null;
         }
-        // Esconde os menus médicos
-        document.querySelectorAll('.header-nav a:not([href="recepcao.html"])').forEach(el => el.style.display = 'none');
-    } else {
-        // Se for médico e estiver numa página normal, pode esconder o menu da recepção se quiser
-        // document.querySelectorAll('.header-nav a[href="recepcao.html"]').forEach(el => el.style.display = 'none');
+        // Esconde menus médicos, mas mantém a engrenagem de configurações
+        document.querySelectorAll('.header-nav a').forEach(el => {
+            if (el.getAttribute('href') === 'consulta.html' || el.getAttribute('href') === 'pacientes.html') {
+                el.style.display = 'none';
+            }
+        });
+        
+        // Garante que o link da Recepção aparece no menu, caso a pessoa esteja nas configurações
+        const nav = document.querySelector('.header-nav');
+        if (nav && !document.querySelector('.header-nav a[href="recepcao.html"]')) {
+            nav.innerHTML = `<a href="recepcao.html" class="nav-item" style="text-decoration: none;">Painel da Recepção</a>` + nav.innerHTML;
+        }
+    } 
+    
+    // 3. Regras para MÉDICOS (Nível: Total)
+    else {
+        // Se o médico quiser ver a recepção, ele pode. Senão, esconde o botão da recepção para não poluir.
+        if (!paginaAtual.includes('recepcao.html')) {
+            document.querySelectorAll('.header-nav a[href="recepcao.html"]').forEach(el => el.style.display = 'none');
+        }
     }
 
     // Configura o cabeçalho
@@ -106,20 +108,19 @@ async function verificarAutenticacao() {
     const nameElement = document.getElementById('medicoLogadoName');
     if (crmElement && nameElement) {
         crmElement.innerText = crm;
-        nameElement.innerText = (nivelAcesso === 'Agendamento' ? '' : 'Dr(a). ') + nome.split(' ')[0];
+        const prefixo = (nivelAcesso === 'Total') ? 'Dr(a). ' : '';
+        nameElement.innerText = prefixo + nome.split(' ')[0];
     }
     
+    // 👇 ADICIONE ESTA LINHA QUE FALTA AQUI 👇
     return { session, crm, nivelAcesso };
 }
+
 
 // ==========================================
 // SISTEMA DE EDIÇÃO DE DADOS PESSOAIS
 // ==========================================
 document.addEventListener("DOMContentLoaded", async () => {
-    const btnPerfil = document.getElementById('btnPerfil');
-    const modalPerfil = document.getElementById('modalPerfil');
-    const btnFecharPerfil = document.getElementById('btnFecharPerfil');
-    const btnSalvarPerfil = document.getElementById('btnSalvarPerfil');
     
     // Mapeamento dos campos
     const inputEmail = document.getElementById('perfilEmail');
@@ -128,32 +129,51 @@ document.addEventListener("DOMContentLoaded", async () => {
     const inputCpf = document.getElementById('perfilCpf');
     const inputCrmPessoal = document.getElementById('perfilCrmPessoal');
 
+    // 1. Botão de Logout
+    const btnSair = document.getElementById('btnSair');
+    if (btnSair) {
+        btnSair.addEventListener('click', async () => {
+            await clienteSupabase.auth.signOut();
+            window.location.href = 'index.html'; // Redireciona para o login
+        });
+    }
+
+    // 2. Abrir o Modal de Perfil
+    const btnPerfil = document.getElementById('btnPerfil');
+    const modalPerfil = document.getElementById('modalPerfil');
     if (btnPerfil && modalPerfil) {
-        // 1. Abrir a janela e carregar os dados guardados
-        btnPerfil.addEventListener('click', async () => {
-            const { data: { session } } = await clienteSupabase.auth.getSession();
-            if (session) {
-                const metadados = session.user.user_metadata;
-                
-                inputEmail.value = session.user.email;
-                inputNome.value = metadados.nome_completo || '';
-                inputNascimento.value = metadados.data_nascimento || '';
-                inputCpf.value = metadados.cpf || '';
-                inputCrmPessoal.value = metadados.crm_pessoal || '';
-                
-                modalPerfil.style.display = 'flex';
+        btnPerfil.addEventListener('click', () => {
+            modalPerfil.style.display = 'flex';
+        });
+    }
+
+    // 3. Fechar o Modal de Perfil
+    const btnFecharPerfil = document.getElementById('btnFecharPerfil');
+    if (btnFecharPerfil && modalPerfil) {
+        btnFecharPerfil.addEventListener('click', () => {
+            modalPerfil.style.display = 'none';
+        });
+    }
+
+    if (modalPerfil) {
+        modalPerfil.addEventListener('click', (e) => {
+            if (e.target === modalPerfil) {
+                modalPerfil.style.display = 'none';
             }
         });
+    }
 
-        // 2. Fechar a janela
-        btnFecharPerfil.addEventListener('click', () => modalPerfil.style.display = 'none');
-        modalPerfil.addEventListener('click', (e) => {
-            if (e.target === modalPerfil) modalPerfil.style.display = 'none';
-        });
-
-        // 3. Salvar os novos dados no Supabase Auth
+    // 4. Salvar os novos dados no Supabase Auth
+    const btnSalvarPerfil = document.getElementById('btnSalvarPerfil');
+    if (btnSalvarPerfil) {
         btnSalvarPerfil.addEventListener('click', async () => {
-            const novoNome = inputNome.value.trim();
+            // Capta os inputs apenas se eles existirem na página
+            const inputNome = document.getElementById('inputNome');
+            const inputNascimento = document.getElementById('inputNascimento');
+            const inputCpf = document.getElementById('inputCpf');
+            const inputCrmPessoal = document.getElementById('inputCrmPessoal');
+
+            const novoNome = inputNome ? inputNome.value.trim() : '';
             if (!novoNome) return alert("O Nome Completo é obrigatório.");
 
             const textoOriginal = btnSalvarPerfil.innerText;
@@ -161,23 +181,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnSalvarPerfil.disabled = true;
 
             try {
-                // Envia os 4 campos de volta para os metadados do utilizador
                 const { error } = await clienteSupabase.auth.updateUser({
-                    data: { 
+                    data: {
                         nome_completo: novoNome,
-                        data_nascimento: inputNascimento.value,
-                        cpf: inputCpf.value.trim(),
-                        crm_pessoal: inputCrmPessoal.value.trim()
+                        data_nascimento: inputNascimento ? inputNascimento.value : '',
+                        cpf: inputCpf ? inputCpf.value.trim() : '',
+                        crm_pessoal: inputCrmPessoal ? inputCrmPessoal.value.trim() : ''
                     }
                 });
 
                 if (error) throw error;
 
                 alert("Dados pessoais atualizados com sucesso!");
-                modalPerfil.style.display = 'none';
-                
-                // Atualiza o ecrã para refletir o novo nome
-                window.location.reload(); 
+                if (modalPerfil) modalPerfil.style.display = 'none';
+                window.location.reload();
 
             } catch (error) {
                 console.error(error);

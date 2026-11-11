@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fila de Espera - Softplan CDSS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header class="saas-header">
+        <div class="header-logo">
+            <span class="logo-icon">⚕️</span><span class="logo-text">Softplan<strong>CDSS</strong></span>
+        </div>
+        
+        <nav class="header-nav">
+            <a href="fila.html" class="nav-item active" style="text-decoration: none;">Fila de Espera</a>
+            <a href="consulta.html" class="nav-item" style="text-decoration: none;">Nova Consulta</a>
+            <a href="pacientes.html" class="nav-item" style="text-decoration: none;">Meus Pacientes</a>
+        </nav>
+
+        <div class="header-user">
+            <a href="configuracoes.html" class="settings-icon" title="Configurações e Acessos">⚙️</a>
+            <div class="user-info">
+                <span id="medicoLogadoName" class="user-name">Carregando...</span>
+                <span class="user-crm">CRM: <span id="medicoLogadoCrm">---</span></span>
+            </div>
+            <button id="btnPerfil" class="user-avatar" title="Editar Perfil">👨‍⚕️</button>
+            <button id="btnSair" class="btn-logout">Sair</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <main>
+            <div class="section-header">
+                <h2>Pacientes Aguardando Atendimento</h2>
+                <button class="action-btn" onclick="carregarFila()" style="background: white; color: var(--text); border: 1px solid var(--border);">🔄 Atualizar Fila</button>
+            </div>
+
+            <!-- Aqui os cartões dos pacientes serão injetados pelo JavaScript -->
+            <div id="gridFilaEspera" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                <!-- Exemplo de como o card ficará (Injetado via JS) -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Edição de Dados Pessoais (Opcional, mas mantém a consistência) -->
+    <div id="modalPerfil" class="modal-overlay">
+        <!-- O conteúdo do modal que criámos anteriormente entra aqui (pode colar o bloco HTML do modal do config.js) -->
+    </div>
+
+    <script src="config.js"></script>
+    <script src="fila.js"></script>
+</body>
+</html>

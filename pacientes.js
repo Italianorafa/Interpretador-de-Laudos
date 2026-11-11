@@ -1,93 +1,72 @@
-// pacientes.js
 document.addEventListener("DOMContentLoaded", async () => {
-    // 1. Verifica se está logado e pega o CRM
+    // 1. Verifica autenticação
     const authData = await verificarAutenticacao();
     if (!authData) return;
-    const medicoAtualCrm = authData.crm;
+    const medicoCrm = authData.crm;
 
-    const tabela = document.getElementById('tabelaPacientesCrud');
-    const timeline = document.getElementById('timelineProntuario');
-
-    // 2. Carregar Lista Inicial
-    async function carregarLista() {
-        tabela.innerHTML = '<tr><td colspan="3" style="text-align:center;">A procurar pacientes...</td></tr>';
-        document.getElementById('listaPacientesContainer').classList.remove('hidden');
-        document.getElementById('detalhesPacienteContainer').classList.add('hidden');
-
-        const { data, error } = await clienteSupabase.from('atendimentos').select('*').eq('medico_crm', medicoAtualCrm);
+    async function carregarPacientes() {
+        // Encontra o container principal (adapte o ID se no seu HTML for diferente, como 'tabelaPacientes')
+        const container = document.getElementById('listaPacientes') || document.querySelector('main');
         
-        if (error || !data || data.length === 0) {
-            tabela.innerHTML = `<tr><td colspan="3" style="text-align:center;">Nenhum paciente encontrado.</td></tr>`;
-            return;
-        }
+        try {
+            // Busca os atendimentos do médico logado, EXCLUINDO os que estão na fila de espera
+            const { data: pacientes, error } = await clienteSupabase
+                .from('atendimentos')
+                .select('*')
+                .eq('medico_crm', medicoCrm)
+                .neq('diagnostico_ia', 'Aguardando avaliação médica.') // O Filtro Mágico
+                .order('created_at', { ascending: false });
 
-        data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            if (error) throw error;
 
-        const pacientesMap = {};
-        data.forEach(atend => {
-            const nome = (atend.nome_paciente || 'Desconhecido').trim();
-            if(!pacientesMap[nome.toUpperCase()]) {
-                pacientesMap[nome.toUpperCase()] = { nome, dataStr: new Date(atend.created_at).toLocaleDateString('pt-BR') };
-            }
-        });
-
-        tabela.innerHTML = '';
-        Object.values(pacientesMap).forEach(paciente => {
-            tabela.innerHTML += `
-                <tr>
-                    <td><strong>${paciente.nome}</strong></td>
-                    <td>${paciente.dataStr}</td>
-                    <td class="crud-actions">
-                        <button class="btn-icon open" onclick="abrirProntuario('${paciente.nome}')">📂 Abrir Prontuário</button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
-
-    // 3. Abrir Prontuário (Timeline) - Exposta globalmente para o onClick do HTML
-    window.abrirProntuario = async function(nome) {
-        document.getElementById('listaPacientesContainer').classList.add('hidden');
-        document.getElementById('detalhesPacienteContainer').classList.remove('hidden');
-        document.getElementById('tituloNomePaciente').innerText = `Prontuário: ${nome}`;
-        timeline.innerHTML = '<p class="loading-text" style="text-align:center;">A carregar histórico...</p>';
-
-        const { data } = await clienteSupabase.from('atendimentos')
-            .select('*').eq('medico_crm', medicoAtualCrm).ilike('nome_paciente', nome);
-
-        data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        timeline.innerHTML = '';
-
-        data.forEach(atend => {
-            const dataHora = new Date(atend.created_at).toLocaleString('pt-BR');
-            const diagIA = atend.diagnostico_ia ? atend.diagnostico_ia.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') : 'N/A';
-
-            timeline.innerHTML += `
-                <div class="timeline-card">
-                    <div class="timeline-header">
-                        <div class="timeline-date">📅 ${dataHora}</div>
-                        <button class="btn-icon delete" onclick="deletarAtendimento(${atend.id}, '${nome}')">🗑️</button>
-                    </div>
-                    <div class="timeline-body">
-                        <p><strong>Anamnese:</strong><br> ${atend.anamnese || 'N/A'}</p>
-                        <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 15px;">
-                            <p style="margin-bottom:0;"><strong style="color: #166534;">Análise:</strong><br> ${diagIA}</p>
-                        </div>
-                    </div>
+            // Constrói o HTML visual dos pacientes já atendidos
+            let html = `
+                <div class="section-header">
+                    <h2>Meus Pacientes (Histórico Clínico)</h2>
                 </div>
             `;
-        });
-    };
+            
+            if (!pacientes || pacientes.length === 0) {
+                html += `
+                    <div style="text-align: center; padding: 40px; background: white; border-radius: 12px; border: 1px dashed var(--border);">
+                        <p style="color: var(--text-muted);">Nenhum histórico de consulta finalizada encontrado.</p>
+                    </div>`;
+                container.innerHTML = html;
+                return;
+            }
 
-    // 4. Voltar e Deletar
-    document.getElementById('btnVoltarPacientes').addEventListener('click', carregarLista);
+            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">';
+            
+            pacientes.forEach(p => {
+                const dataConsulta = new Date(p.created_at).toLocaleDateString('pt-BR');
+                const horaConsulta = new Date(p.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                
+                html += `
+                    <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: var(--primary); font-size: 18px;">${p.nome_paciente}</h3>
+                            <span class="badge-consultas" style="background: #f1f5f9; color: #475569;">${dataConsulta} às ${horaConsulta}</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-muted); background: #f8fafc; padding: 10px; border-radius: 6px; max-height: 100px; overflow-y: auto; margin-bottom: 10px;">
+                            <strong>Prontuário / Anamnese:</strong><br>
+                            ${p.anamnese ? p.anamnese.replace(/\n/g, '<br>') : '---'}
+                        </div>
+                        <div style="font-size: 13px; color: var(--text); background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
+                            <strong>Conclusão / Diagnóstico IA:</strong><br>
+                            ${p.diagnostico_ia ? p.diagnostico_ia.replace(/\n/g, '<br>') : '---'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
 
-    window.deletarAtendimento = async function(id, nome) {
-        if(!confirm("Eliminar esta consulta permanentemente?")) return;
-        await clienteSupabase.from('atendimentos').delete().eq('id', id);
-        abrirProntuario(nome); 
-    };
+        } catch (error) {
+            console.error("Erro ao carregar histórico:", error);
+            container.innerHTML = '<p style="color: red; text-align:center;">Erro ao carregar a lista de pacientes.</p>';
+        }
+    }
 
-    // Inicia a tabela assim que carrega
-    carregarLista();
+    carregarPacientes();
 });

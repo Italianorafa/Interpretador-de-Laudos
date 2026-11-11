@@ -415,6 +415,38 @@ textarea.small-text { min-height: 80px; }
     border: none; background: none;
 }
 
+/* ==========================================
+   ESTILOS DE LOADING E UTILITÁRIOS
+========================================== */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 25px;
+    margin-top: 15px;
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border-left-color: #0ea5e9; /* Azul do sistema */
+    animation: spin 1s linear infinite;
+    margin-bottom: 12px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Força ocultação absoluta independentemente de outras regras */
+.hidden {
+    display: none !important;
+}
+
 .btn-icon.open { color: var(--primary); font-weight: 600; padding: 8px 15px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
