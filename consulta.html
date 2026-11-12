@@ -6,6 +6,13 @@
     <title>Nova Consulta - Softplan CDSS</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Estilos do Loading Animado */
+        .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 25px; margin-top: 15px; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #0ea5e9; animation: spin 1s linear infinite; margin-bottom: 12px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body>
     <header class="saas-header">
@@ -21,7 +28,6 @@
 
         <div class="header-user">
             <a href="configuracoes.html" class="settings-icon" title="Configurações e Acessos">⚙️</a>
-            
             <div class="user-info">
                 <span id="medicoLogadoName" class="user-name">Carregando...</span>
                 <span class="user-crm">CRM: <span id="medicoLogadoCrm">---</span></span>
@@ -34,8 +40,7 @@
     <div class="container">
         <main>
             <div class="clinical-section">
-                
-                <!-- Grelha de Identificação do Paciente (Nome, Documento, Sexo, Nascimento e Idade) -->
+                <!-- Grelha de Identificação -->
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                     <div style="grid-column: span 2;">
                         <label for="nomePaciente" style="display:block; margin-bottom:5px;">Nome do Paciente:</label>
@@ -68,7 +73,6 @@
                     <div class="historico-tools">
                         <input type="file" id="historicoPdfInput" accept="application/pdf" class="hidden">
                         <button class="btn-secondary" id="btnExtrairHistorico" type="button">📄 Extrair de PDF</button>
-                        <span id="historicoLoading" class="hidden loading-text">A extrair dados...</span>
                     </div>
                 </div>
                 <textarea id="historicoInput" class="small-text" placeholder="Ex: Hipertenso, faz uso de Losartana..."></textarea>
@@ -76,17 +80,15 @@
                 <label for="anamnesePaciente">Anamnese / Queixa Principal:</label>
                 <textarea id="anamnesePaciente" placeholder="Ex: Paciente relata dor torácica..."></textarea>
                 
-                <!-- Sistema de Abas para Exames Complementares -->
+                <!-- Exames Complementares -->
                 <label>Exames Complementares (Opcional):</label>
                 <div class="tabs">
                     <button class="tab-btn active" data-target="tab-texto" type="button">Digitar Resultados</button>
                     <button class="tab-btn" data-target="tab-pdf" type="button">Anexar Laudo (PDF)</button>
                 </div>
-
                 <div id="tab-texto" class="tab-content active">
                     <textarea id="laudoInput" class="small-text" placeholder="Cole aqui os resultados relevantes (ex: Troponina, ECG...)"></textarea>
                 </div>
-
                 <div id="tab-pdf" class="tab-content">
                     <label for="pdfInput" class="file-upload-wrapper" style="display: block; cursor: pointer;">
                         <input type="file" id="pdfInput" accept="application/pdf" style="display: none;">
@@ -100,7 +102,6 @@
                 <button id="btnAnalisar" class="action-btn" type="button">Analisar com IA e Salvar</button>
             </div>
             
-            <!-- SINAL DE LOADING ANIMADO DA IA (Controlado pelo JS) -->
             <div id="loading" class="hidden loading-container">
                 <div class="spinner"></div>
                 <p class="loading-text" style="color: #64748b; font-weight: 500;">A analisar quadro clínico com Inteligência Artificial...</p>
@@ -113,45 +114,21 @@
         </main>
     </div>
 
-    <!-- Modal de Edição de Dados Pessoais -->
+    <!-- Modal de Perfil omitido visualmente, mas mantido na estrutura -->
     <div id="modalPerfil" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header">
                 <h3>Meus Dados Pessoais</h3>
                 <button id="btnFecharPerfil" class="close-modal">✖</button>
             </div>
-            
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                <div style="grid-column: span 2;">
-                    <label>E-mail de Acesso:</label>
-                    <input type="text" id="perfilEmail" disabled style="background: #f1f5f9; cursor: not-allowed; width: 100%;">
-                </div>
-                
-                <div style="grid-column: span 2;">
-                    <label>Nome Completo:</label>
-                    <input type="text" id="perfilNome" placeholder="Ex: Dr. João da Silva" style="width: 100%;">
-                </div>
-                
-                <div>
-                    <label>Data de Nascimento:</label>
-                    <input type="date" id="perfilNascimento" style="width: 100%;">
-                </div>
-                
-                <div>
-                    <label>CPF:</label>
-                    <input type="text" id="perfilCpf" placeholder="000.000.000-00" style="width: 100%;">
-                </div>
-                
-                <div style="grid-column: span 2;">
-                    <label>CRM Pessoal (Apenas para Médicos):</label>
-                    <input type="text" id="perfilCrmPessoal" placeholder="Ex: 123456-SP" style="width: 100%;">
-                    <small style="color: gray; font-size: 12px; margin-top: 4px; display: block;">Se você é da equipa de recepção ou triagem, deixe este campo em branco.</small>
-                </div>
+                <div style="grid-column: span 2;"><label>E-mail de Acesso:</label><input type="text" id="perfilEmail" disabled style="background: #f1f5f9; width: 100%;"></div>
+                <div style="grid-column: span 2;"><label>Nome Completo:</label><input type="text" id="perfilNome" style="width: 100%;"></div>
+                <div><label>Nascimento:</label><input type="date" id="perfilNascimento" style="width: 100%;"></div>
+                <div><label>CPF:</label><input type="text" id="perfilCpf" style="width: 100%;"></div>
+                <div style="grid-column: span 2;"><label>CRM Pessoal:</label><input type="text" id="perfilCrmPessoal" style="width: 100%;"></div>
             </div>
-            
-            <div style="text-align: right;">
-                <button id="btnSalvarPerfil" class="action-btn">Salvar Dados</button>
-            </div>
+            <div style="text-align: right;"><button id="btnSalvarPerfil" class="action-btn">Salvar Dados</button></div>
         </div>
     </div>
 

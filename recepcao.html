@@ -51,11 +51,19 @@
                         <label>Telefone / Contato:</label>
                         <input type="text" id="recContato" placeholder="(11) 99999-9999">
                     </div>
+                    <div>
+                        <label for="sexoPaciente" style="display:block; margin-bottom:5px;">Sexo:</label>
+                        <select id="sexoPaciente" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                            <option value="">Selecione...</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Feminino">Feminino</option>
+                        </select>
+                    </div>
+                    <br>
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border);">
                         <label style="color: var(--primary);"><strong>Médico Responsável pelo Atendimento (Busque por Nome ou CRM):</strong></label>
                         <input type="text" id="recMedicoSelecionado" list="listaMedicosDatalist" placeholder="Digite para buscar..." style="width: 100%; max-width: 500px;">
                         
-                        <!-- O JavaScript vai injetar os médicos aqui dentro -->
                         <datalist id="listaMedicosDatalist"></datalist>
                     </div>
                 </div>
@@ -112,6 +120,7 @@
         </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="recepcao.js"></script>
 </body>

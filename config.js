@@ -1,5 +1,6 @@
 // --- CHAVES DAS APIS ---
-const GEMINI_API_KEY = 'AQ.Ab8RN6JsxAXR0IK4nA2_-e2S8fhNRU2G4ciFvEINhjoA0In9Ig'; 
+const GEMINI_API_KEY = 'AQ.Ab8RN6I_ayhj3dZiRKJOetr1_bgvPgfuPagkz6--JrISuTDQnQ'; 
+const GROQ_API_KEY = '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';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${GEMINI_API_KEY}`;
 
 
@@ -7,7 +8,7 @@ const SUPABASE_URL = 'https://kxdpgmpgmnogmtqvsask.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IPgFjiWNCGpdFjVIdaX_Rg_PHNHM6R9';
 
 // Inicia o cliente Supabase globalmente
-const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Função global para verificar se o médico está logado (proteção de rotas)
 async function verificarAutenticacao() {

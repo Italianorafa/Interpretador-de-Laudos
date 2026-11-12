@@ -1,81 +1,115 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const authData = await verificarAutenticacao();
-    if (!authData) return;
-    const crmClinica = authData.crm; // O CRM atua como a "Chave da Clínica"
-
-    const btnSalvar = document.getElementById('btnSalvarAdmissao');
-    const datalist = document.getElementById('listaMedicosDatalist');
-
-    // 1. CARREGAR A LISTA DE MÉDICOS DINAMICAMENTE
-    async function carregarMedicos() {
-        // Primeiro, adiciona o próprio Médico Titular (Dono da clínica)
-        datalist.innerHTML = `<option value="Dr(a). Titular - CRM: ${crmClinica}">`;
-
-        // Depois, busca no Supabase todos os membros da equipe que são Médicos (Acesso Total)
-        const { data, error } = await clienteSupabase
-            .from('equipe')
-            .select('nome, cargo')
-            .eq('admin_crm', crmClinica)
-            .eq('nivel_acesso', 'Total');
-
-        if (!error && data) {
-            data.forEach(med => {
-                // Preenche a lista com o Nome e o Cargo. 
-                // Dica: Se quiser que o CRM do plantonista seja buscável, basta colocar o CRM no nome ou cargo lá nas Configurações!
-                datalist.innerHTML += `<option value="${med.nome} (${med.cargo})">`;
-            });
-        }
-    }
+    const inputNome = document.getElementById('nomePaciente');
+    const inputDocumento = document.getElementById('documentoPaciente');
+    const selectSexo = document.getElementById('sexoPaciente');
+    const inputNascimento = document.getElementById('nascimentoPaciente');
+    const inputMotivo = document.getElementById('motivoConsulta');
     
-    // Executa a busca assim que a página abre
-    carregarMedicos();
+    const selectMedico = document.getElementById('selectMedico');
+    const btnAdicionarFila = document.getElementById('btnAdicionarFila');
 
-    // 2. SALVAR A FICHA E ENVIAR PARA O MÉDICO
-    btnSalvar.addEventListener('click', async () => {
-        const medicoEscolhido = document.getElementById('recMedicoSelecionado').value.trim();
-        const nome = document.getElementById('recNome').value.trim();
-        const nascimento = document.getElementById('recNascimento').value;
-        const documento = document.getElementById('recDocumento').value.trim();
-        const motivo = document.getElementById('recMotivo').value.trim();
-
-        // Validação extra
-        if (!nome || !motivo || !medicoEscolhido) {
-            alert('Por favor, preencha o Médico Responsável, o Nome do Paciente e o Motivo da Consulta.');
-            return;
-        }
-
-        // Criamos uma tag visual no início da anamnese para o médico saber que foi direcionado a ele
-        const textoAnamneseInicial = `[MÉDICO ALOCADO: ${medicoEscolhido}]\n\n[TRIAGEM/RECEPÇÃO]\nNascimento: ${nascimento}\nDocumento: ${documento}\nMotivo: ${motivo}`;
-
-        btnSalvar.innerText = "Salvando...";
-        btnSalvar.disabled = true;
+    // ==========================================
+    // BUSCAR MÉDICOS DINAMICAMENTE
+    // ==========================================
+    async function carregarMedicos() {
+        if (!selectMedico) return;
 
         try {
-            // Grava na mesma tabela de atendimentos
-            const { error } = await clienteSupabase.from('atendimentos').insert([{
-                medico_crm: crmClinica,
-                nome_paciente: nome,
-                anamnese: textoAnamneseInicial,
-                diagnostico_ia: 'Aguardando avaliação médica.'
-            }]);
+            selectMedico.innerHTML = '<option value="">A procurar médicos...</option>';
+
+            // Usa a variável global fixada no window
+            const { data: medicos, error } = await window.clienteSupabase
+                .from('equipe') 
+                .select('*');
 
             if (error) throw error;
 
-            alert('Ficha criada! O paciente já aparece no painel do médico selecionado.');
+            if (!medicos || medicos.length === 0) {
+                selectMedico.innerHTML = '<option value="">Nenhum médico encontrado na equipe</option>';
+                return;
+            }
+
+            selectMedico.innerHTML = '<option value="">Sem preferência (Fila Geral)</option>';
             
-            // Limpa o formulário para o próximo paciente
-            document.getElementById('recMedicoSelecionado').value = '';
-            document.getElementById('recNome').value = '';
-            document.getElementById('recNascimento').value = '';
-            document.getElementById('recDocumento').value = '';
-            document.getElementById('recMotivo').value = '';
+            medicos.forEach(medico => {
+                const option = document.createElement('option');
+                const valorCrm = medico.admin_crm || ''; 
+                const nomeMedico = medico.nome || 'Sem Nome';
+                
+                option.value = valorCrm;
+                option.textContent = `Dr(a). ${nomeMedico} (CRM: ${valorCrm})`;
+                selectMedico.appendChild(option);
+            });
 
         } catch (error) {
-            console.error(error);
-            alert("Erro ao criar a ficha de admissão.");
-        } finally {
-            btnSalvar.innerText = "Salvar e Enviar para o Médico";
-            btnSalvar.disabled = false;
+            console.error("Erro ao carregar médicos:", error);
+            selectMedico.innerHTML = '<option value="">Falha ao carregar lista</option>';
         }
-    });
+    }
+
+    carregarMedicos();
+
+    // ==========================================
+    // SALVAR E ENVIAR AO MÉDICO
+    // ==========================================
+    if (btnAdicionarFila) {
+        btnAdicionarFila.addEventListener('click', async () => {
+            const nome = inputNome ? inputNome.value.trim() : '';
+            const documento = inputDocumento ? inputDocumento.value.trim() : 'Não informado';
+            const sexo = selectSexo ? selectSexo.value : 'Não informado';
+            const nascimento = inputNascimento && inputNascimento.value ? inputNascimento.value : 'Não informada';
+            const motivo = inputMotivo ? inputMotivo.value.trim() : 'Sem motivo registado';
+            const medicoCrmSelecionado = selectMedico ? selectMedico.value : null; 
+
+            if (!nome) {
+                alert("O Nome do Paciente é obrigatório.");
+                return;
+            }
+
+            const textoOriginal = btnAdicionarFila.innerText;
+            btnAdicionarFila.innerText = "A enviar para o consultório...";
+            btnAdicionarFila.disabled = true;
+
+            try {
+                let textoTriagem = `[TRIAGEM/RECEPÇÃO]\nDocumento: ${documento}\nNascimento: ${nascimento}\nSexo: ${sexo}\nMotivo: ${motivo}`;
+                
+                if (medicoCrmSelecionado && selectMedico.options[selectMedico.selectedIndex]) {
+                    const nomeMedico = selectMedico.options[selectMedico.selectedIndex].text;
+                    textoTriagem = `[MÉDICO ALOCADO: ${nomeMedico}]\n\n` + textoTriagem;
+                }
+
+                const dadosInsercao = {
+                    nome_paciente: nome,
+                    anamnese: textoTriagem,
+                    status: 'aguardando'
+                };
+
+                if (medicoCrmSelecionado) {
+                    dadosInsercao.medico_crm = medicoCrmSelecionado;
+                }
+
+                const { error: dbError } = await window.clienteSupabase
+                    .from('atendimentos')
+                    .insert([dadosInsercao]);
+
+                if (dbError) throw dbError;
+
+                alert(`Ficha salva! O paciente ${nome} foi encaminhado com sucesso.`);
+                
+                if (inputNome) inputNome.value = '';
+                if (inputDocumento) inputDocumento.value = '';
+                if (selectSexo) selectSexo.value = '';
+                if (inputNascimento) inputNascimento.value = '';
+                if (inputMotivo) inputMotivo.value = '';
+                if (selectMedico) selectMedico.value = '';
+
+            } catch (error) {
+                console.error("Erro ao enviar paciente:", error);
+                alert("Erro ao adicionar paciente: " + error.message);
+            } finally {
+                btnAdicionarFila.innerText = textoOriginal;
+                btnAdicionarFila.disabled = false;
+            }
+        });
+    }
 });
