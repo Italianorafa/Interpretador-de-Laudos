@@ -1,11 +1,17 @@
 document.addEventListener("DOMContentLoaded", async () => {
-
-    // 1. AUTENTICAÇÃO E DOM
-
+    // ==========================================
+    // 1. IDENTIDADE DO MÉDICO LOGADO
+    // ==========================================
     const authData = await verificarAutenticacao();
     if (!authData) return;
-    const medicoCrm = authData.crm;
+    const medicoCrm = authData.crm; // ID da Clínica
+    
+    // Descobrir o nome do médico para a Assinatura Eletrônica no banco de dados
+    const metadata = authData.session.user.user_metadata;
+    const nomeUsuarioLogado = metadata.nome_completo;
+    const nomeFormatadoLogado = nomeUsuarioLogado ? `Dr(a). ${nomeUsuarioLogado}` : "Médico Titular";
 
+    // Mapeamento de elementos da interface
     const inputNome = document.getElementById('nomePaciente');
     const inputDocumento = document.getElementById('documentoPaciente');
     const inputNascimento = document.getElementById('nascimentoPaciente');
@@ -21,9 +27,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const historicoInput = document.getElementById('historicoInput');
     const laudoInput = document.getElementById('laudoInput');
 
-
+    // ==========================================
     // 2. CÁLCULO DE IDADE DINÂMICO
-
+    // ==========================================
     function calcularIdade(dataNascimentoStr) {
         if (!dataNascimentoStr) return '';
         const hoje = new Date();
@@ -40,15 +46,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-
+    // ==========================================
     // 3. IMPORTAR DADOS DA FILA DE ESPERA
-
+    // ==========================================
     const urlParams = new URLSearchParams(window.location.search);
     const atendimentoId = urlParams.get('atendimento_id');
 
     if (atendimentoId) {
         try {
-            const { data: pacienteFila, error: erroFila } = await clienteSupabase
+            const { data: pacienteFila, error: erroFila } = await window.clienteSupabase
                 .from('atendimentos')
                 .select('*')
                 .eq('id', atendimentoId)
@@ -58,12 +64,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (inputNome) inputNome.value = pacienteFila.nome_paciente;
                 
                 let textoProntuario = pacienteFila.anamnese || '';
-
-                // Extrai Nascimento e Documento do texto da receção
-                // Extrai Nascimento, Documento e Sexo do texto da receção
+                
+                // Extrai Nascimento, Documento e Sexo do texto da triagem
                 const matchNascimento = textoProntuario.match(/Nascimento:\s*([^\n]+)/);
                 const matchDocumento = textoProntuario.match(/Documento:\s*([^\n]+)/);
-                const matchSexo = textoProntuario.match(/Sexo:\s*([^\n]+)/); // <-- EXTRAI O SEXO
+                const matchSexo = textoProntuario.match(/Sexo:\s*([^\n]+)/); 
 
                 if (matchNascimento) {
                     const dataNasc = matchNascimento[1].trim(); 
@@ -72,23 +77,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (inputIdade) inputIdade.value = calcularIdade(dataNasc);
                     }
                 }
+                if (matchDocumento && inputDocumento) inputDocumento.value = matchDocumento[1].trim();
+                if (matchSexo && selectSexo) selectSexo.value = matchSexo[1].trim(); 
 
-                if (matchDocumento && inputDocumento) {
-                    inputDocumento.value = matchDocumento[1].trim();
-                }
-
-                // <-- PREENCHE A CAIXA DE SEXO AUTOMATICAMENTE
-                if (matchSexo && selectSexo) {
-                    selectSexo.value = matchSexo[1].trim(); 
-                }
-
-                // Limpa as tags estruturais para deixar apenas o texto clínico limpo para o médico
+                // Limpa as tags estruturais para a leitura médica ficar mais limpa
                 textoProntuario = textoProntuario.replace(/\[MÉDICO ALOCADO:.*?\]\n*/g, '');
                 textoProntuario = textoProntuario.replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/g, '');
-                textoProntuario = textoProntuario.replace(/\[AVALIAÇÃO MÉDICA\]\n*/g, '');
-                textoProntuario = textoProntuario.replace(/Nascimento:[^\n]*\n?/g, '');
                 textoProntuario = textoProntuario.replace(/Documento:[^\n]*\n?/g, '');
-                textoProntuario = textoProntuario.replace(/Sexo:[^\n]*\n?/g, ''); // <-- APAGA O SEXO DO TEXTO BRUTO
+                textoProntuario = textoProntuario.replace(/Nascimento:[^\n]*\n?/g, '');
+                textoProntuario = textoProntuario.replace(/Sexo:[^\n]*\n?/g, ''); 
+                textoProntuario = textoProntuario.replace(/Contato:[^\n]*\n?/g, '');
                 textoProntuario = textoProntuario.replace(/Motivo:\s*/g, '');
                 textoProntuario = textoProntuario.replace(/\n{3,}/g, '\n\n').trim();
 
@@ -99,42 +97,110 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-
-    // 4. SISTEMA DE ABAS E FEEDBACK DE PDF
-
+    // ==========================================
+    // 4. SISTEMA DE ABAS E LEITURA DE PDF
+    // ==========================================
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
-
+    
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            const targetId = btn.getAttribute('data-target');
-            const targetContent = document.getElementById(targetId);
+            const targetContent = document.getElementById(btn.getAttribute('data-target'));
             if (targetContent) targetContent.classList.add('active');
         });
     });
 
-    const btnExtrairHistorico = document.getElementById('btnExtrairHistorico');
-    const historicoPdfInput = document.getElementById('historicoPdfInput');
-    if (btnExtrairHistorico && historicoPdfInput) {
-        btnExtrairHistorico.addEventListener('click', () => historicoPdfInput.click());
+    // Função universal para extrair texto do PDF
+    async function extrairTextoPDF(file) {
+        if (typeof window.pdfjsLib === 'undefined') {
+            throw new Error("Biblioteca PDF.js não carregou corretamente no HTML.");
+        }
+        
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async function() {
+                try {
+                    const typedarray = new Uint8Array(this.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let text = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        const strings = content.items.map(item => item.str);
+                        text += strings.join(" ") + "\n";
+                    }
+                    resolve(text);
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
     }
 
-    const pdfInput = document.getElementById('pdfInput');
-    if (pdfInput) {
-        pdfInput.addEventListener('change', (e) => {
+    // A) PDF DO HISTÓRICO CLÍNICO
+    const btnExtrairHistorico = document.getElementById('btnExtrairHistorico');
+    const historicoPdfInput = document.getElementById('historicoPdfInput');
+    
+    if (btnExtrairHistorico && historicoPdfInput) {
+        btnExtrairHistorico.addEventListener('click', () => historicoPdfInput.click());
+        
+        historicoPdfInput.addEventListener('change', async (e) => {
             if (e.target.files.length > 0) {
-                const hint = document.querySelector('.file-hint');
-                if (hint) hint.innerHTML = `✅ Laudo Anexado: <strong style="color: #0ea5e9;">${e.target.files[0].name}</strong> (Clique para trocar)`;
+                const originalText = btnExtrairHistorico.innerText;
+                btnExtrairHistorico.innerText = "⏳ A extrair...";
+                try {
+                    const texto = await extrairTextoPDF(e.target.files[0]);
+                    // Limita o texto para não travar a caixa se for um documento muito grande
+                    if (historicoInput) historicoInput.value = texto.substring(0, 3000); 
+                    alert("Histórico extraído com sucesso! Pode editar o texto se quiser.");
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao ler PDF. Tente copiar e colar o texto manualmente.");
+                }
+                btnExtrairHistorico.innerText = originalText;
+                historicoPdfInput.value = ''; // Limpa o input
             }
         });
     }
 
+    // B) PDF DE EXAMES COMPLEMENTARES (LAUDO)
+    const pdfInput = document.getElementById('pdfInput');
+    if (pdfInput) {
+        pdfInput.addEventListener('change', async (e) => {
+            if (e.target.files.length > 0) {
+                const hint = document.querySelector('.file-hint');
+                const originalHTML = hint.innerHTML;
+                hint.innerHTML = `⏳ A extrair texto do exame...`;
+                
+                try {
+                    const texto = await extrairTextoPDF(e.target.files[0]);
+                    if (laudoInput) laudoInput.value = texto.substring(0, 4000); 
+                    
+                    hint.innerHTML = `✅ Laudo Anexado e Lido: <strong style="color: #0ea5e9;">${e.target.files[0].name}</strong>`;
+                    
+                    // Muda automaticamente para a aba "Digitar Resultados" para o médico ver
+                    const abaTexto = document.querySelector('[data-target="tab-texto"]');
+                    if (abaTexto) abaTexto.click();
+                    
+                } catch (err) {
+                    console.error(err);
+                    hint.innerHTML = originalHTML;
+                    alert("Erro ao ler PDF do Laudo. O ficheiro pode estar protegido.");
+                }
+                pdfInput.value = ''; 
+            }
+        });
+    }
 
+    // ==========================================
     // 5. ANÁLISE COM IA (GEMINI + GROQ) E SALVAMENTO NO SUPABASE
-
+    // ==========================================
     if (btnAnalisar) {
         btnAnalisar.addEventListener('click', async () => {
             const anamneseText = inputAnamnese ? inputAnamnese.value.trim() : '';
@@ -149,28 +215,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const historicoText = historicoInput ? historicoInput.value.trim() : 'Nenhum histórico prévio informado.';
             const laudoText = laudoInput ? laudoInput.value.trim() : 'Nenhum laudo anexado.';
 
-            const instrucaoSistema = "Você é um assistente médico especialista operando um Sistema de Suporte à Decisão Clínica (CDSS). Responda sempre em Português.";
-            
-            const conteudoPaciente = `DADOS DO PACIENTE:
-- Idade: ${idadeText}
-- Sexo: ${sexoText}
+            const instrucaoSistema = "Você é um assistente médico especialista operando um CDSS. Responda em Português.";
+            const conteudoPaciente = `DADOS DO PACIENTE:\n- Idade: ${idadeText}\n- Sexo: ${sexoText}\n\nHISTÓRICO CLÍNICO E COMORBIDADES:\n${historicoText}\n\nANAMNESE / QUEIXA PRINCIPAL:\n${anamneseText}\n\nEXAMES COMPLEMENTARES ANEXADOS:\n${laudoText}\n\nCom base nestas informações, forneça a sua análise estruturada exatamente nestes 4 tópicos:\n1. **Resumo do Quadro**\n2. **Hipóteses Diagnósticas**\n3. **Conduta Terapêutica**\n4. **Exames Recomendados**`;
 
-HISTÓRICO CLÍNICO E COMORBIDADES:
-${historicoText}
-
-ANAMNESE / QUEIXA PRINCIPAL:
-${anamneseText}
-
-EXAMES COMPLEMENTARES ANEXADOS:
-${laudoText}
-
-Com base nestas informações, forneça a sua análise estruturada exatamente nestes 4 tópicos:
-1. **Resumo do Quadro:** Destaque os principais pontos clínicos e sinais de alerta (red flags), se houver.
-2. **Hipóteses Diagnósticas:** Liste as principais suspeitas em ordem de probabilidade.
-3. **Conduta Terapêutica:** Sugestões de manejo inicial ou tratamento.
-4. **Exames Recomendados:** Liste os exames laboratoriais ou de imagem que o paciente deve realizar para confirmar as hipóteses, com uma breve justificativa para cada um.`;
-
-            // Ativa o loading visual
             btnAnalisar.disabled = true;
             btnAnalisar.innerText = "A processar...";
             if (loading) loading.classList.remove('hidden');
@@ -179,102 +226,75 @@ Com base nestas informações, forneça a sua análise estruturada exatamente ne
             try {
                 let respostaDaIA = "";
                 let sucesso = false;
-
             
-                // TENTATIVA 1: GOOGLE GEMINI
-            
+                // Tentativa 1: GEMINI
                 try {
-                    if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY) throw new Error("Sem GEMINI_API_KEY");
                     const responseGemini = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: instrucaoSistema + "\n\n" + conteudoPaciente }] }] })
                     });
-                    if (!responseGemini.ok) throw new Error(`Status: ${responseGemini.status}`);
+                    if (!responseGemini.ok) throw new Error();
                     const dataGemini = await responseGemini.json();
                     respostaDaIA = dataGemini.candidates[0].content.parts[0].text;
                     sucesso = true;
-                } catch (erroGemini) {
+                } catch (e) {
                     console.warn(`Gemini falhou. Iniciando fallback para Groq...`);
-                }
-
-            
-                // TENTATIVA 2: GROQ CLOUD (FALLBACK)
-            
-                if (!sucesso) {
-                    try {
-                        if (typeof GROQ_API_KEY === 'undefined' || !GROQ_API_KEY) throw new Error("Sem GROQ_API_KEY");
+                    // Tentativa 2: GROQ
+                    if (typeof GROQ_API_KEY !== 'undefined' && GROQ_API_KEY) {
                         const responseGroq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                             method: "POST",
                             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
-                            body: JSON.stringify({
-                                model: "openai/gpt-oss-120b", 
-                                messages: [
-                                    { role: "system", content: instrucaoSistema },
-                                    { role: "user", content: conteudoPaciente }
-                                ],
-                                temperature: 0.3
-                            })
+                            body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: instrucaoSistema }, { role: "user", content: conteudoPaciente }], temperature: 0.3 })
                         });
-                        if (!responseGroq.ok) throw new Error(`Status: ${responseGroq.status}`);
-                        const dataGroq = await responseGroq.json();
-                        respostaDaIA = dataGroq.choices[0].message.content;
-                        sucesso = true;
-                    } catch (erroGroq) {
-                        throw new Error("Falha geral: As inteligências artificiais (Gemini e Groq) estão indisponíveis.");
+                        if (responseGroq.ok) {
+                            const dataGroq = await responseGroq.json();
+                            respostaDaIA = dataGroq.choices[0].message.content;
+                            sucesso = true;
+                        }
                     }
                 }
 
-            
-                // EXIBIÇÃO E SALVAMENTO NA BASE DE DADOS SUPABASE
-            
-                if (sucesso) {
-                    // 1. Formata e exibe na interface
-                    let respostaFormatada = respostaDaIA.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
-                    if (divResultadoTexto) divResultadoTexto.innerHTML = respostaFormatada;
-                    if (resultadoBox) resultadoBox.classList.remove('hidden');
+                if (!sucesso) throw new Error("A IA falhou na análise. Verifique a sua ligação ou chaves de API.");
 
-                    // 2. Registra o atendimento no Supabase
-                    let dbError;
-                    if (atendimentoId) {
-                        // Atualiza um paciente que veio da Fila de Espera
-                        const res = await clienteSupabase.from('atendimentos').update({ 
-                            nome_paciente: nomePaciente, 
-                            anamnese: anamneseText, 
-                            diagnostico_ia: respostaDaIA // Salvamos o texto puro para manter integridade dos dados
-                        }).eq('id', atendimentoId);
-                        dbError = res.error;
-                    } else {
-                        // Cria um novo paciente avulso no sistema
-                        const res = await clienteSupabase.from('atendimentos').insert([{ 
-                            medico_crm: medicoCrm, 
-                            nome_paciente: nomePaciente, 
-                            anamnese: anamneseText, 
-                            diagnostico_ia: respostaDaIA 
-                        }]);
-                        dbError = res.error;
-                    }
+                // 1. Formatar e exibir na interface
+                let respostaFormatada = respostaDaIA.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                if (divResultadoTexto) divResultadoTexto.innerHTML = respostaFormatada;
+                if (resultadoBox) resultadoBox.classList.remove('hidden');
 
-                    if (dbError) {
-                        console.error("Erro no Supabase:", dbError);
-                        alert("A IA gerou a análise, mas houve um erro ao salvar o registo na base de dados.");
-                    } else {
-                        // 3. Confirmação inteligente de navegação
-                        // O setTimeout dá 500ms para o navegador desenhar a caixa da IA na tela antes de bloquear com o pop-up
-                        setTimeout(() => {
-                            const irParaPacientes = confirm("✅ Análise concluída e paciente salvo com sucesso!\n\nDeseja ir para a página 'Meus Pacientes' agora?\n(Clique em 'Cancelar' se preferir continuar nesta página para ler o laudo da IA)");
-                            
-                            if (irParaPacientes) {
-                                window.location.href = 'pacientes.html';
-                            }
-                        }, 500);
-                    }
+                // 2. Salvar no Supabase com o nome do médico
+                let dbError;
+                if (atendimentoId) {
+                    const res = await window.clienteSupabase.from('atendimentos').update({ 
+                        nome_paciente: nomePaciente, 
+                        anamnese: anamneseText, 
+                        diagnostico_ia: respostaDaIA,
+                        nome_medico: nomeFormatadoLogado // <-- GRAVA O NOME DO MÉDICO
+                    }).eq('id', atendimentoId);
+                    dbError = res.error;
+                } else {
+                    const res = await window.clienteSupabase.from('atendimentos').insert([{ 
+                        medico_crm: medicoCrm, 
+                        nome_paciente: nomePaciente, 
+                        anamnese: anamneseText, 
+                        diagnostico_ia: respostaDaIA,
+                        nome_medico: nomeFormatadoLogado // <-- GRAVA O NOME DO MÉDICO
+                    }]);
+                    dbError = res.error;
                 }
+
+                if (dbError) throw dbError;
+
+                // 3. Confirmação
+                setTimeout(() => {
+                    if (confirm("✅ Análise salva! Deseja ir para a página 'Meus Pacientes' agora?")) {
+                        window.location.href = 'pacientes.html';
+                    }
+                }, 500);
 
             } catch (error) {
                 alert(error.message);
             } finally {
-                // Restaura o estado do botão e oculta o spinner
                 btnAnalisar.disabled = false;
                 btnAnalisar.innerText = "Analisar com IA e Salvar";
                 if (loading) loading.classList.add('hidden');
@@ -282,58 +302,48 @@ Com base nestas informações, forneça a sua análise estruturada exatamente ne
         });
     }
 
-
-    // 6. SALVAR A CONSULTA (BASE DE DADOS)
-
+    // ==========================================
+    // 6. SALVAR A CONSULTA (MANUALMENTE)
+    // ==========================================
     if (btnSalvarAnamnese) {
         btnSalvarAnamnese.addEventListener('click', async () => {
             const nomePaciente = inputNome ? inputNome.value.trim() : '';
             const textoAnamnese = inputAnamnese ? inputAnamnese.value.trim() : '';
+            if (!nomePaciente || !textoAnamnese) return alert("O nome e a anamnese são obrigatórios.");
 
-            if (!nomePaciente || !textoAnamnese) {
-                alert("O nome e a anamnese são obrigatórios.");
-                return;
-            }
-
-            const textoOriginal = btnSalvarAnamnese.innerText;
             btnSalvarAnamnese.innerText = "A Salvar...";
             btnSalvarAnamnese.disabled = true;
 
             try {
-                let diagnosticoFinal = 'Atendimento finalizado.';
+                let diagnosticoFinal = 'Atendimento finalizado manualmente.';
                 if (divResultadoTexto && divResultadoTexto.innerText.trim() !== '') {
                     diagnosticoFinal = divResultadoTexto.innerText.trim();
                 }
 
+                const payload = { 
+                    nome_paciente: nomePaciente, 
+                    anamnese: textoAnamnese, 
+                    diagnostico_ia: diagnosticoFinal,
+                    nome_medico: nomeFormatadoLogado // <-- GRAVA O NOME DO MÉDICO
+                };
+
+                let dbError;
                 if (atendimentoId) {
-                    const { error: dbError } = await clienteSupabase
-                        .from('atendimentos')
-                        .update({ 
-                            nome_paciente: nomePaciente, 
-                            anamnese: textoAnamnese, 
-                            diagnostico_ia: diagnosticoFinal 
-                        })
-                        .eq('id', atendimentoId);
-                    if (dbError) throw dbError;
+                    const res = await window.clienteSupabase.from('atendimentos').update(payload).eq('id', atendimentoId);
+                    dbError = res.error;
                 } else {
-                    const { error: dbError } = await clienteSupabase
-                        .from('atendimentos')
-                        .insert([{ 
-                            medico_crm: medicoCrm, 
-                            nome_paciente: nomePaciente, 
-                            anamnese: textoAnamnese, 
-                            diagnostico_ia: diagnosticoFinal 
-                        }]);
-                    if (dbError) throw dbError;
+                    payload.medico_crm = medicoCrm;
+                    const res = await window.clienteSupabase.from('atendimentos').insert([payload]);
+                    dbError = res.error;
                 }
 
+                if (dbError) throw dbError;
                 alert('Consulta salva com sucesso!');
                 window.location.href = 'pacientes.html';
             } catch (error) {
-                console.error("Erro ao salvar consulta:", error);
                 alert("Erro ao salvar: " + error.message);
             } finally {
-                btnSalvarAnamnese.innerText = textoOriginal;
+                btnSalvarAnamnese.innerText = "Salvar Apenas Anamnese";
                 btnSalvarAnamnese.disabled = false;
             }
         });

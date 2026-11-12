@@ -1,92 +1,153 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const inputNome = document.getElementById('nomePaciente');
-    const inputDocumento = document.getElementById('documentoPaciente');
+    // 1. Obtém os dados de autenticação
+    const authData = await verificarAutenticacao();
+    if (!authData) return;
+    const tenantCrm = authData.crm;
+
+    const inputNome = document.getElementById('recNome');
+    const inputDocumento = document.getElementById('recDocumento');
+    const inputNascimento = document.getElementById('recNascimento');
     const selectSexo = document.getElementById('sexoPaciente');
-    const inputNascimento = document.getElementById('nascimentoPaciente');
-    const inputMotivo = document.getElementById('motivoConsulta');
+    const inputContato = document.getElementById('recContato');
     
-    const selectMedico = document.getElementById('selectMedico');
-    const btnAdicionarFila = document.getElementById('btnAdicionarFila');
+    const inputMedico = document.getElementById('recMedicoSelecionado');
+    const datalistMedicos = document.getElementById('listaMedicosDatalist');
+    
+    const inputMotivo = document.getElementById('recMotivo');
+    const btnSalvar = document.getElementById('btnSalvarAdmissao');
+    const btnBuscarPaciente = document.getElementById('btnBuscarPaciente');
 
     // ==========================================
-    // BUSCAR MÉDICOS DINAMICAMENTE
+    // 2. CARREGAR MÉDICOS NA LISTA
     // ==========================================
     async function carregarMedicos() {
-        if (!selectMedico) return;
+        if (!datalistMedicos) return;
 
         try {
-            selectMedico.innerHTML = '<option value="">A procurar médicos...</option>';
-
-            // Usa a variável global fixada no window
             const { data: medicos, error } = await window.clienteSupabase
                 .from('equipe') 
-                .select('*');
+                .select('*')
+                .eq('admin_crm', tenantCrm);
 
             if (error) throw error;
-
-            if (!medicos || medicos.length === 0) {
-                selectMedico.innerHTML = '<option value="">Nenhum médico encontrado na equipe</option>';
-                return;
-            }
-
-            selectMedico.innerHTML = '<option value="">Sem preferência (Fila Geral)</option>';
             
-            medicos.forEach(medico => {
-                const option = document.createElement('option');
-                const valorCrm = medico.admin_crm || ''; 
-                const nomeMedico = medico.nome || 'Sem Nome';
-                
-                option.value = valorCrm;
-                option.textContent = `Dr(a). ${nomeMedico} (CRM: ${valorCrm})`;
-                selectMedico.appendChild(option);
-            });
+            datalistMedicos.innerHTML = ''; 
+            const optionTitular = document.createElement('option');
+            optionTitular.value = "Médico Titular";
+            datalistMedicos.appendChild(optionTitular);
 
+            if (medicos && medicos.length > 0) {
+                medicos.forEach(membro => {
+                    if (membro.nivel_acesso === 'Total' || membro.cargo.toLowerCase().includes('médico')) {
+                        const option = document.createElement('option');
+                        option.value = `Dr(a). ${membro.nome}`; 
+                        datalistMedicos.appendChild(option);
+                    }
+                });
+            }
         } catch (error) {
             console.error("Erro ao carregar médicos:", error);
-            selectMedico.innerHTML = '<option value="">Falha ao carregar lista</option>';
         }
     }
-
     carregarMedicos();
 
     // ==========================================
-    // SALVAR E ENVIAR AO MÉDICO
+    // 3. BUSCAR CADASTRO DO PACIENTE POR CPF
     // ==========================================
-    if (btnAdicionarFila) {
-        btnAdicionarFila.addEventListener('click', async () => {
+    if (btnBuscarPaciente) {
+        btnBuscarPaciente.addEventListener('click', async () => {
+            const docBusca = inputDocumento ? inputDocumento.value.trim() : '';
+            if (!docBusca) {
+                alert("Por favor, digite o CPF/Documento antes de clicar em buscar.");
+                return;
+            }
+
+            const textoOriginal = btnBuscarPaciente.innerText;
+            btnBuscarPaciente.innerText = "⏳";
+            btnBuscarPaciente.disabled = true;
+
+            try {
+                const { data, error } = await window.clienteSupabase
+                    .from('pacientes')
+                    .select('*')
+                    .eq('documento', docBusca)
+                    .single(); // Puxa apenas 1 registo
+
+                if (data) {
+                    // Preenche os campos automaticamente
+                    if (inputNome) inputNome.value = data.nome_completo || '';
+                    if (inputNascimento && data.data_nascimento) inputNascimento.value = data.data_nascimento;
+                    if (selectSexo && data.sexo) selectSexo.value = data.sexo;
+                    if (inputContato) inputContato.value = data.contato || '';
+                    
+                    // Alerta visual discreto (opcional, pode remover se achar chato)
+                    alert(`✅ Cadastro de ${data.nome_completo} encontrado!`);
+                } else {
+                    alert("Este paciente não tem cadastro. Pode preencher os dados, ele será guardado automaticamente ao salvar a ficha.");
+                }
+            } catch (error) {
+                // O Supabase retorna erro se não encontrar a linha, é normal
+                alert("Paciente não encontrado. Novo cadastro será gerado.");
+            } finally {
+                btnBuscarPaciente.innerText = "🔍 Buscar";
+                btnBuscarPaciente.disabled = false;
+            }
+        });
+    }
+
+    // ==========================================
+    // 4. SALVAR CADASTRO E ENVIAR PARA A FILA
+    // ==========================================
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', async () => {
             const nome = inputNome ? inputNome.value.trim() : '';
-            const documento = inputDocumento ? inputDocumento.value.trim() : 'Não informado';
-            const sexo = selectSexo ? selectSexo.value : 'Não informado';
-            const nascimento = inputNascimento && inputNascimento.value ? inputNascimento.value : 'Não informada';
+            const documento = inputDocumento ? inputDocumento.value.trim() : '';
+            const nascimento = inputNascimento && inputNascimento.value ? inputNascimento.value : null;
+            const sexo = selectSexo && selectSexo.value ? selectSexo.value : null;
+            const contato = inputContato ? inputContato.value.trim() : null;
             const motivo = inputMotivo ? inputMotivo.value.trim() : 'Sem motivo registado';
-            const medicoCrmSelecionado = selectMedico ? selectMedico.value : null; 
+            const medicoSelecionado = inputMedico ? inputMedico.value.trim() : null; 
 
             if (!nome) {
                 alert("O Nome do Paciente é obrigatório.");
                 return;
             }
 
-            const textoOriginal = btnAdicionarFila.innerText;
-            btnAdicionarFila.innerText = "A enviar para o consultório...";
-            btnAdicionarFila.disabled = true;
+            const textoOriginal = btnSalvar.innerText;
+            btnSalvar.innerText = "A processar...";
+            btnSalvar.disabled = true;
 
             try {
-                let textoTriagem = `[TRIAGEM/RECEPÇÃO]\nDocumento: ${documento}\nNascimento: ${nascimento}\nSexo: ${sexo}\nMotivo: ${motivo}`;
+                // ETAPA A: ATUALIZAR OU CRIAR O PERFIL DO PACIENTE (Se houver Documento)
+                if (documento) {
+                    const { error: pacienteError } = await window.clienteSupabase
+                        .from('pacientes')
+                        .upsert([{
+                            documento: documento,
+                            nome_completo: nome,
+                            data_nascimento: nascimento,
+                            sexo: sexo,
+                            contato: contato
+                        }], { onConflict: 'documento' });
+
+                    if (pacienteError) {
+                        console.error("Erro ao salvar cadastro do paciente:", pacienteError);
+                    }
+                }
+
+                // ETAPA B: ENVIAR PARA A FILA DE ESPERA
+                let textoTriagem = `[TRIAGEM/RECEPÇÃO]\nDocumento: ${documento || 'Não informado'}\nNascimento: ${nascimento || 'Não informada'}\nSexo: ${sexo || 'Não informado'}\nContato: ${contato || 'Não informado'}\nMotivo: ${motivo}`;
                 
-                if (medicoCrmSelecionado && selectMedico.options[selectMedico.selectedIndex]) {
-                    const nomeMedico = selectMedico.options[selectMedico.selectedIndex].text;
-                    textoTriagem = `[MÉDICO ALOCADO: ${nomeMedico}]\n\n` + textoTriagem;
+                if (medicoSelecionado) {
+                    textoTriagem = `[MÉDICO ALOCADO: ${medicoSelecionado}]\n\n` + textoTriagem;
                 }
 
                 const dadosInsercao = {
                     nome_paciente: nome,
                     anamnese: textoTriagem,
-                    status: 'aguardando'
+                    diagnostico_ia: 'Aguardando avaliação médica.', // Tag correta para o fila.js ler
+                    medico_crm: tenantCrm 
                 };
-
-                if (medicoCrmSelecionado) {
-                    dadosInsercao.medico_crm = medicoCrmSelecionado;
-                }
 
                 const { error: dbError } = await window.clienteSupabase
                     .from('atendimentos')
@@ -94,21 +155,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (dbError) throw dbError;
 
-                alert(`Ficha salva! O paciente ${nome} foi encaminhado com sucesso.`);
+                alert(`Ficha salva! O paciente ${nome} foi cadastrado e encaminhado com sucesso.`);
                 
+                // Limpa o formulário
                 if (inputNome) inputNome.value = '';
                 if (inputDocumento) inputDocumento.value = '';
-                if (selectSexo) selectSexo.value = '';
                 if (inputNascimento) inputNascimento.value = '';
+                if (selectSexo) selectSexo.value = '';
+                if (inputContato) inputContato.value = '';
                 if (inputMotivo) inputMotivo.value = '';
-                if (selectMedico) selectMedico.value = '';
+                if (inputMedico) inputMedico.value = '';
 
             } catch (error) {
                 console.error("Erro ao enviar paciente:", error);
                 alert("Erro ao adicionar paciente: " + error.message);
             } finally {
-                btnAdicionarFila.innerText = textoOriginal;
-                btnAdicionarFila.disabled = false;
+                btnSalvar.innerText = textoOriginal;
+                btnSalvar.disabled = false;
             }
         });
     }

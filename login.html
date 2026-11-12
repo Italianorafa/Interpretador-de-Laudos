@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Softplan CDSS</title>
+    <title>Login - CDSS</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="background-color: #f4f7fb;">
-    <div class="login-box" style="margin: auto; margin-top: 10vh;">
-        <h2 id="loginTitle">Acesso Restrito</h2>
+    <div class="login-box" style="margin: auto; margin-top: 8vh;">
+        <h2 id="loginTitle">CDSS</h2>
         
         <div class="clinical-section" style="margin-bottom: 15px;">
             <input type="email" id="authEmail" placeholder="E-mail profissional">
@@ -22,6 +22,16 @@
         
         <div id="authLoading" class="hidden" style="margin-top: 15px;">
             <p class="loading-text">A processar...</p>
+        </div>
+
+        <!-- 🧪 BLOCO DE ACESSOS DE TESTE PARA O AVALIADOR -->
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); text-align: left; font-size: 13px; color: var(--text-muted);">
+            <strong style="color: var(--text-main); display: block; margin-bottom: 8px;">🧪 Contas de Teste para Avaliação:</strong>
+            <div style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid var(--border); line-height: 1.5;">
+                <div>👨‍⚕️ <strong>Médico / Admin:</strong><br><span style="user-select: all; color: var(--primary);">medico@teste.com</span> / <span style="user-select: all;">123456</span></div>
+                <div style="margin-top: 6px;">👩‍💼 <strong>Recepção:</strong><br><span style="user-select: all; color: var(--primary);">recepcao@teste.com</span> / <span style="user-select: all;">123456</span></div>
+                <div style="margin-top: 6px;">👩‍💼 <strong>Administração:</strong><br><span style="user-select: all; color: var(--primary);">adm@teste.com</span> / <span style="user-select: all;">123456</span></div>
+            </div>
         </div>
     </div>
 

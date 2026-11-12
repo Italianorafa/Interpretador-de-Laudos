@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meus Pacientes - Softplan CDSS</title>
+    <title>Meus Pacientes - CDSS</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <header class="saas-header">
         <div class="header-logo">
-            <span class="logo-icon">⚕️</span><span class="logo-text">Softplan<strong>CDSS</strong></span>
+            <span class="logo-icon">⚕️</span><span class="logo-text"><strong>CDSS</strong></span>
         </div>
         
         <nav class="header-nav">
@@ -29,7 +29,7 @@
                 <span class="user-crm">CRM: <span id="medicoLogadoCrm">---</span></span>
             </div>
             <button id="btnPerfil" class="user-avatar" title="Editar Perfil">👨‍⚕️</button>
-            <button id="btnSair" class="btn-logout">Sair</button>
+            <button id="btnSair" class="btn-logout" onclick="window.location.href='login.html'">Sair</button>
         </div>
     </header>
 
@@ -46,7 +46,8 @@
                         <thead>
                             <tr>
                                 <th>Nome do Paciente</th>
-                                <th>Data do Último Retorno</th>
+                                <th>Idade</th>
+                                <th>CPF / Documento</th>
                                 <th style="text-align: center;">Ações</th>
                             </tr>
                         </thead>

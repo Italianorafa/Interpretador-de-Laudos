@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nova Consulta - Softplan CDSS</title>
+    <title>Nova Consulta - CDSS</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -17,7 +17,7 @@
 <body>
     <header class="saas-header">
         <div class="header-logo">
-            <span class="logo-icon">⚕️</span><span class="logo-text">Softplan<strong>CDSS</strong></span>
+            <span class="logo-icon">⚕️</span><span class="logo-text"><strong>CDSS</strong></span>
         </div>
         
         <nav class="header-nav">
@@ -132,7 +132,10 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="consulta.js"></script>
-</body>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+        <script>window.pdfjsLib = window['pdfjs-dist/build/pdf'];</script>
+
+        <script src="config.js"></script>
+        <script src="consulta.js"></script>
+    </body>
 </html>

@@ -1,54 +1,26 @@
 // --- CHAVES DAS APIS ---
 const GEMINI_API_KEY = 'AQ.Ab8RN6I_ayhj3dZiRKJOetr1_bgvPgfuPagkz6--JrISuTDQnQ'; 
 const GROQ_API_KEY = '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';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${GEMINI_API_KEY}`;
-
-
 const SUPABASE_URL = 'https://kxdpgmpgmnogmtqvsask.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IPgFjiWNCGpdFjVIdaX_Rg_PHNHM6R9';
 
-// Inicia o cliente Supabase globalmente
 window.clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Função global para verificar se o médico está logado (proteção de rotas)
-async function verificarAutenticacao() {
-    const { data: { session }, error } = await clienteSupabase.auth.getSession();
-    
-    if (error || !session) {
-        window.location.href = 'login.html'; // Expulsa para o login se não estiver logado
-        return null;
-    }
-    
-    // Configura o cabeçalho com os dados do médico nas páginas protegidas
-    const crm = session.user.user_metadata.crm || 'CRM-INDEFINIDO';
-    const crmElement = document.getElementById('medicoLogadoCrm');
-    const nameElement = document.getElementById('medicoLogadoName');
-    
-    if (crmElement && nameElement) {
-        crmElement.innerText = crm;
-        nameElement.innerText = "Dr(a). " + crm.split('-')[0];
-    }
-    
-    return { session, crm };
-}
+// ==========================================
+// 1. LOGOUT SEGURO E GLOBAL
+// ==========================================
+// Criamos uma função global que obriga o navegador a esperar a sessão ser apagada ANTES de mudar de ecrã
+window.fazerLogout = async function() {
+    console.log("A encerrar sessão no Supabase e a limpar cache...");
+    await window.clienteSupabase.auth.signOut(); 
+    window.location.href = 'login.html'; 
+};
 
-// Função global de Logout
-async function fazerLogout() {
-    await clienteSupabase.auth.signOut();
-    window.location.href = 'login.html';
-}
-
-// Atribui o evento ao botão de Sair (se ele existir na página)
-document.addEventListener("DOMContentLoaded", () => {
-    const btnSair = document.getElementById('btnSair');
-    if (btnSair) {
-        btnSair.addEventListener('click', fazerLogout);
-    }
-});
-
-// Função global para verificar autenticação e nível de acesso
-async function verificarAutenticacao() {
-    const { data: { session }, error } = await clienteSupabase.auth.getSession();
+// ==========================================
+// 2. AUTENTICAÇÃO E CONTROLO DE ACESSO (RBAC)
+// ==========================================
+window.verificarAutenticacao = async function() {
+    const { data: { session }, error } = await window.clienteSupabase.auth.getSession();
     
     if (error || !session) {
         window.location.href = 'login.html';
@@ -56,55 +28,45 @@ async function verificarAutenticacao() {
     }
     
     const crm = session.user.user_metadata.crm || 'CRM-INDEFINIDO';
-    const nivelAcesso = session.user.user_metadata.acesso_level || 'Total'; // Médicos/Admins têm Total
+    const nivelAcesso = session.user.user_metadata.acesso_level || 'Total'; 
     const nome = session.user.user_metadata.nome_completo || crm;
     
-    // ==========================================
-    // SISTEMA RBAC (Controlo de Acesso)
-    // ==========================================
     const paginaAtual = window.location.pathname.toLowerCase();
-    const btnConfig = document.querySelector('.settings-icon'); // A engrenagem
+    const btnConfig = document.querySelector('.settings-icon');
 
-    // 1. Regras para RECEPÇÃO BÁSICA (Nível: Agendamento)
+    // Regras da Recepção (Agendamento)
     if (nivelAcesso === 'Agendamento') {
         if (paginaAtual.includes('consulta.html') || paginaAtual.includes('pacientes.html') || paginaAtual.includes('configuracoes.html')) {
             window.location.href = 'recepcao.html';
             return null;
         }
-        // Esconde menus médicos e a engrenagem de configurações
-        document.querySelectorAll('.header-nav a:not([href="recepcao.html"])').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.header-nav a:not([href*="recepcao.html"])').forEach(el => el.style.display = 'none');
         if (btnConfig) btnConfig.style.display = 'none';
     } 
-    
-    // 2. Regras para GESTOR DA CLÍNICA (Nível: Administrativo)
+    // Regras da Gestão (Administrativo)
     else if (nivelAcesso === 'Administrativo') {
         if (paginaAtual.includes('consulta.html') || paginaAtual.includes('pacientes.html')) {
             window.location.href = 'recepcao.html';
             return null;
         }
-        // Esconde menus médicos, mas mantém a engrenagem de configurações
         document.querySelectorAll('.header-nav a').forEach(el => {
-            if (el.getAttribute('href') === 'consulta.html' || el.getAttribute('href') === 'pacientes.html') {
+            if (el.getAttribute('href').includes('consulta.html') || el.getAttribute('href').includes('pacientes.html')) {
                 el.style.display = 'none';
             }
         });
-        
-        // Garante que o link da Recepção aparece no menu, caso a pessoa esteja nas configurações
         const nav = document.querySelector('.header-nav');
-        if (nav && !document.querySelector('.header-nav a[href="recepcao.html"]')) {
+        if (nav && !document.querySelector('.header-nav a[href*="recepcao.html"]')) {
             nav.innerHTML = `<a href="recepcao.html" class="nav-item" style="text-decoration: none;">Painel da Recepção</a>` + nav.innerHTML;
         }
     } 
-    
-    // 3. Regras para MÉDICOS (Nível: Total)
+    // Regras Médicas (Total)
     else {
-        // Se o médico quiser ver a recepção, ele pode. Senão, esconde o botão da recepção para não poluir.
         if (!paginaAtual.includes('recepcao.html')) {
-            document.querySelectorAll('.header-nav a[href="recepcao.html"]').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.header-nav a[href*="recepcao.html"]').forEach(el => el.style.display = 'none');
         }
     }
 
-    // Configura o cabeçalho
+    // Configura o cabeçalho visualmente
     const crmElement = document.getElementById('medicoLogadoCrm');
     const nameElement = document.getElementById('medicoLogadoName');
     if (crmElement && nameElement) {
@@ -113,68 +75,48 @@ async function verificarAutenticacao() {
         nameElement.innerText = prefixo + nome.split(' ')[0];
     }
     
-    // 👇 ADICIONE ESTA LINHA QUE FALTA AQUI 👇
     return { session, crm, nivelAcesso };
-}
-
+};
 
 // ==========================================
-// SISTEMA DE EDIÇÃO DE DADOS PESSOAIS
+// 3. EVENTOS DE TELA (BOTÕES DE SAIR E PERFIL)
 // ==========================================
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
     
-    // Mapeamento dos campos
-    const inputEmail = document.getElementById('perfilEmail');
-    const inputNome = document.getElementById('perfilNome');
-    const inputNascimento = document.getElementById('perfilNascimento');
-    const inputCpf = document.getElementById('perfilCpf');
-    const inputCrmPessoal = document.getElementById('perfilCrmPessoal');
-
-    // 1. Botão de Logout
-    const btnSair = document.getElementById('btnSair');
-    if (btnSair) {
-        btnSair.addEventListener('click', async () => {
-            await clienteSupabase.auth.signOut();
-            window.location.href = 'index.html'; // Redireciona para o login
+    // Interceta todos os botões de logout do sistema e força-os a usar a via segura
+    const botoesSair = document.querySelectorAll('#btnSair, #botaoLogout, .btn-logout');
+    botoesSair.forEach(btn => {
+        btn.removeAttribute('onclick'); // Remove o salto rápido do HTML
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.fazerLogout();
         });
-    }
+    });
 
-    // 2. Abrir o Modal de Perfil
+    // Lógica do Modal de Perfil
     const btnPerfil = document.getElementById('btnPerfil');
     const modalPerfil = document.getElementById('modalPerfil');
-    if (btnPerfil && modalPerfil) {
-        btnPerfil.addEventListener('click', () => {
-            modalPerfil.style.display = 'flex';
-        });
-    }
-
-    // 3. Fechar o Modal de Perfil
     const btnFecharPerfil = document.getElementById('btnFecharPerfil');
-    if (btnFecharPerfil && modalPerfil) {
-        btnFecharPerfil.addEventListener('click', () => {
-            modalPerfil.style.display = 'none';
-        });
-    }
 
+    if (btnPerfil && modalPerfil) btnPerfil.addEventListener('click', () => modalPerfil.style.display = 'flex');
+    if (btnFecharPerfil && modalPerfil) btnFecharPerfil.addEventListener('click', () => modalPerfil.style.display = 'none');
     if (modalPerfil) {
         modalPerfil.addEventListener('click', (e) => {
-            if (e.target === modalPerfil) {
-                modalPerfil.style.display = 'none';
-            }
+            if (e.target === modalPerfil) modalPerfil.style.display = 'none';
         });
     }
 
-    // 4. Salvar os novos dados no Supabase Auth
+    // Lógica para Salvar as edições do Perfil Pessoal
     const btnSalvarPerfil = document.getElementById('btnSalvarPerfil');
     if (btnSalvarPerfil) {
         btnSalvarPerfil.addEventListener('click', async () => {
-            // Capta os inputs apenas se eles existirem na página
-            const inputNome = document.getElementById('inputNome');
-            const inputNascimento = document.getElementById('inputNascimento');
-            const inputCpf = document.getElementById('inputCpf');
-            const inputCrmPessoal = document.getElementById('inputCrmPessoal');
+            // Busca pelos IDs corretos definidos no HTML do Modal
+            const inputNomePerfil = document.getElementById('perfilNome');
+            const inputNascimentoPerfil = document.getElementById('perfilNascimento');
+            const inputCpfPerfil = document.getElementById('perfilCpf');
+            const inputCrmPessoalPerfil = document.getElementById('perfilCrmPessoal');
 
-            const novoNome = inputNome ? inputNome.value.trim() : '';
+            const novoNome = inputNomePerfil ? inputNomePerfil.value.trim() : '';
             if (!novoNome) return alert("O Nome Completo é obrigatório.");
 
             const textoOriginal = btnSalvarPerfil.innerText;
@@ -182,12 +124,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnSalvarPerfil.disabled = true;
 
             try {
-                const { error } = await clienteSupabase.auth.updateUser({
+                const { error } = await window.clienteSupabase.auth.updateUser({
                     data: {
                         nome_completo: novoNome,
-                        data_nascimento: inputNascimento ? inputNascimento.value : '',
-                        cpf: inputCpf ? inputCpf.value.trim() : '',
-                        crm_pessoal: inputCrmPessoal ? inputCrmPessoal.value.trim() : ''
+                        data_nascimento: inputNascimentoPerfil ? inputNascimentoPerfil.value : '',
+                        cpf: inputCpfPerfil ? inputCpfPerfil.value.trim() : '',
+                        crm_pessoal: inputCrmPessoalPerfil ? inputCrmPessoalPerfil.value.trim() : ''
                     }
                 });
 

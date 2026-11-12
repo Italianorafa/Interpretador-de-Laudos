@@ -1,72 +1,172 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    // 1. Verifica autenticação
+    // 1. Obtém Identidade do Médico
     const authData = await verificarAutenticacao();
     if (!authData) return;
     const medicoCrm = authData.crm;
+    
+    const metadata = authData.session.user.user_metadata;
+    const nomeUsuarioLogado = metadata.nome_completo;
+    const nomeFormatadoLogado = nomeUsuarioLogado ? `Dr(a). ${nomeUsuarioLogado}` : "Médico Titular";
+
+    const listaContainer = document.getElementById('listaPacientesContainer');
+    const tabelaCrud = document.getElementById('tabelaPacientesCrud');
+    const detalhesContainer = document.getElementById('detalhesPacienteContainer');
+    const btnVoltar = document.getElementById('btnVoltarPacientes');
+    const timeline = document.getElementById('timelineProntuario');
+    const tituloNome = document.getElementById('tituloNomePaciente');
+
+    if (btnVoltar) {
+        btnVoltar.addEventListener('click', () => {
+            detalhesContainer.classList.add('hidden');
+            listaContainer.classList.remove('hidden');
+        });
+    }
+
+    function calcularIdade(dataNascimentoStr) {
+        if (!dataNascimentoStr || dataNascimentoStr === 'Não informada' || dataNascimentoStr === 'null' || dataNascimentoStr === '---') return '---';
+        const hoje = new Date();
+        const nascimento = new Date(dataNascimentoStr + 'T12:00:00');
+        if (isNaN(nascimento)) return '---';
+        let idade = hoje.getFullYear() - nascimento.getFullYear();
+        const mes = hoje.getMonth() - nascimento.getMonth();
+        if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) idade--;
+        return idade + " anos";
+    }
 
     async function carregarPacientes() {
-        // Encontra o container principal (adapte o ID se no seu HTML for diferente, como 'tabelaPacientes')
-        const container = document.getElementById('listaPacientes') || document.querySelector('main');
-        
         try {
-            // Busca os atendimentos do médico logado, EXCLUINDO os que estão na fila de espera
-            const { data: pacientes, error } = await clienteSupabase
+            if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center;">A carregar pacientes...</td></tr>';
+
+            // 1. Busca os atendimentos concluídos deste médico
+            const { data: consultas, error: erroConsultas } = await window.clienteSupabase
                 .from('atendimentos')
                 .select('*')
                 .eq('medico_crm', medicoCrm)
-                .neq('diagnostico_ia', 'Aguardando avaliação médica.') // O Filtro Mágico
+                .eq('nome_medico', nomeFormatadoLogado)
+                .neq('diagnostico_ia', 'Aguardando avaliação médica.')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (erroConsultas) throw erroConsultas;
 
-            // Constrói o HTML visual dos pacientes já atendidos
-            let html = `
-                <div class="section-header">
-                    <h2>Meus Pacientes (Histórico Clínico)</h2>
-                </div>
-            `;
-            
-            if (!pacientes || pacientes.length === 0) {
-                html += `
-                    <div style="text-align: center; padding: 40px; background: white; border-radius: 12px; border: 1px dashed var(--border);">
-                        <p style="color: var(--text-muted);">Nenhum histórico de consulta finalizada encontrado.</p>
-                    </div>`;
-                container.innerHTML = html;
+            if (!consultas || consultas.length === 0) {
+                if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum histórico de pacientes cadastrado para si.</td></tr>';
                 return;
             }
 
-            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">';
+            // 2. Busca a base de dados oficial de PACIENTES (para puxar CPF e Data de Nascimento)
+            const { data: basePacientes, error: erroPacientes } = await window.clienteSupabase
+                .from('pacientes')
+                .select('*');
             
-            pacientes.forEach(p => {
-                const dataConsulta = new Date(p.created_at).toLocaleDateString('pt-BR');
-                const horaConsulta = new Date(p.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            if (erroPacientes) console.error("Erro ao puxar base de pacientes:", erroPacientes);
+
+            // 3. Agrupa as consultas do mesmo paciente numa única linha
+            const pacientesAgrupados = {};
+
+            consultas.forEach(consulta => {
+                const nome = consulta.nome_paciente;
                 
-                html += `
-                    <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                            <h3 style="margin: 0; color: var(--primary); font-size: 18px;">${p.nome_paciente}</h3>
-                            <span class="badge-consultas" style="background: #f1f5f9; color: #475569;">${dataConsulta} às ${horaConsulta}</span>
-                        </div>
-                        <div style="font-size: 13px; color: var(--text-muted); background: #f8fafc; padding: 10px; border-radius: 6px; max-height: 100px; overflow-y: auto; margin-bottom: 10px;">
-                            <strong>Prontuário / Anamnese:</strong><br>
-                            ${p.anamnese ? p.anamnese.replace(/\n/g, '<br>') : '---'}
-                        </div>
-                        <div style="font-size: 13px; color: var(--text); background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
-                            <strong>Conclusão / Diagnóstico IA:</strong><br>
-                            ${p.diagnostico_ia ? p.diagnostico_ia.replace(/\n/g, '<br>') : '---'}
-                        </div>
-                    </div>
-                `;
+                if (!pacientesAgrupados[nome]) {
+                    let cpf = '---';
+                    let nascimento = '---';
+                    
+                    // Cruza os dados: procura o nome do paciente na tabela oficial de cadastros
+                    if (basePacientes) {
+                        const perfil = basePacientes.find(p => p.nome_completo === nome);
+                        if (perfil) {
+                            cpf = perfil.documento || '---';
+                            nascimento = perfil.data_nascimento || '---';
+                        }
+                    }
+
+                    // Fallback: se não achar no cadastro, tenta ler de consultas antigas
+                    if (cpf === '---' && consulta.anamnese) {
+                        const matchDoc = consulta.anamnese.match(/Documento:\s*([^\n]+)/);
+                        const matchNasc = consulta.anamnese.match(/Nascimento:\s*([^\n]+)/);
+                        if (matchDoc) cpf = matchDoc[1].trim();
+                        if (matchNasc) nascimento = matchNasc[1].trim();
+                    }
+
+                    pacientesAgrupados[nome] = {
+                        nome: nome,
+                        cpf: cpf,
+                        idade: calcularIdade(nascimento),
+                        historicoConsultas: []
+                    };
+                }
+                
+                pacientesAgrupados[nome].historicoConsultas.push(consulta);
             });
-            
-            html += '</div>';
-            container.innerHTML = html;
+
+            window.dadosPacientes = pacientesAgrupados;
+
+            // 4. Desenha a tabela com os dados corretos
+            if (tabelaCrud) {
+                tabelaCrud.innerHTML = '';
+                Object.values(pacientesAgrupados).forEach(paciente => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${paciente.nome}</strong></td>
+                        <td>${paciente.idade}</td>
+                        <td>${paciente.cpf}</td>
+                        <td style="text-align: center;">
+                            <button class="btn-secondary" onclick="abrirHistorico('${paciente.nome}')" style="color: var(--primary); border-color: var(--primary);">
+                                📖 Ver Histórico
+                            </button>
+                        </td>
+                    `;
+                    tabelaCrud.appendChild(tr);
+                });
+            }
 
         } catch (error) {
-            console.error("Erro ao carregar histórico:", error);
-            container.innerHTML = '<p style="color: red; text-align:center;">Erro ao carregar a lista de pacientes.</p>';
+            console.error("Erro ao carregar pacientes:", error);
+            if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Erro ao carregar lista.</td></tr>';
         }
     }
+
+    window.abrirHistorico = function(nomePaciente) {
+        const paciente = window.dadosPacientes[nomePaciente];
+        if (!paciente) return;
+
+        tituloNome.innerText = `Prontuário: ${paciente.nome}`;
+        timeline.innerHTML = '';
+
+        paciente.historicoConsultas.forEach(consulta => {
+            const dataObj = new Date(consulta.created_at);
+            const dataFormatada = dataObj.toLocaleDateString('pt-BR');
+            const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            let anamneseLimpa = consulta.anamnese || '';
+            anamneseLimpa = anamneseLimpa.replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/\[MÉDICO ALOCADO:.*?\]\n*/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/Documento:[^\n]*\n?/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/Nascimento:[^\n]*\n?/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/Sexo:[^\n]*\n?/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/Contato:[^\n]*\n?/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/Motivo:\s*/g, '');
+            anamneseLimpa = anamneseLimpa.trim();
+
+            const card = document.createElement('div');
+            card.className = 'timeline-card';
+            card.innerHTML = `
+                <div class="timeline-header">
+                    <div class="timeline-date">📅 ${dataFormatada} às ${horaFormatada}</div>
+                </div>
+                <div class="timeline-body">
+                    <p><strong>Queixa / Anamnese:</strong><br>${anamneseLimpa.replace(/\n/g, '<br>')}</p>
+                    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 15px;">
+                        <strong>🧠 Diagnóstico / Conduta IA:</strong><br>
+                        ${consulta.diagnostico_ia ? consulta.diagnostico_ia.replace(/\n/g, '<br>') : 'Nenhum diagnóstico registado.'}
+                    </div>
+                </div>
+            `;
+            timeline.appendChild(card);
+        });
+
+        listaContainer.classList.add('hidden');
+        detalhesContainer.classList.remove('hidden');
+    };
 
     carregarPacientes();
 });

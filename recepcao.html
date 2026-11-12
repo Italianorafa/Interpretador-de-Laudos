@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recepção - Softplan CDSS</title>
+    <title>Recepção - CDSS</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <header class="saas-header">
         <div class="header-logo">
-            <span class="logo-icon">⚕️</span><span class="logo-text">Softplan<strong>CDSS</strong></span>
+            <span class="logo-icon">⚕️</span><span class="logo-text"><strong>CDSS</strong></span>
         </div>
         <nav class="header-nav">
             <a href="recepcao.html" class="nav-item active" style="text-decoration: none;">Painel da Recepção</a>
@@ -45,7 +45,10 @@
                     </div>
                     <div>
                         <label>CPF / Documento:</label>
-                        <input type="text" id="recDocumento" placeholder="000.000.000-00">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="recDocumento" placeholder="000.000.000-00" style="margin-bottom: 0; flex: 1;">
+                            <button id="btnBuscarPaciente" class="btn-secondary" type="button" title="Buscar Cadastro Automático" style="margin-bottom: 0; padding: 0 15px;">🔍 Buscar</button>
+                        </div>
                     </div>
                     <div>
                         <label>Telefone / Contato:</label>
