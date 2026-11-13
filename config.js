@@ -59,6 +59,22 @@ window.verificarAutenticacao = async function() {
             nav.innerHTML = `<a href="recepcao.html" class="nav-item" style="text-decoration: none;">Painel da Recepção</a>` + nav.innerHTML;
         }
     } 
+    // Regras de Apenas Visualização (Leitura)
+    else if (nivelAcesso === 'Leitura') {
+        if (paginaAtual.includes('consulta.html') || paginaAtual.includes('configuracoes.html') || paginaAtual.includes('recepcao.html')) {
+            window.location.href = 'pacientes.html';
+            return null;
+        }
+        document.querySelectorAll('.header-nav a').forEach(el => {
+            const href = el.getAttribute('href') || '';
+            if (href.includes('consulta.html') || href.includes('recepcao.html')) {
+                el.style.display = 'none';
+            }
+        });
+        if (btnConfig) btnConfig.style.display = 'none';
+        const btnNovaConsulta = document.querySelector('a[href="consulta.html"].btn-success');
+        if (btnNovaConsulta) btnNovaConsulta.style.display = 'none';
+    }
     // Regras Médicas (Total)
     else {
         if (!paginaAtual.includes('recepcao.html')) {
@@ -74,6 +90,20 @@ window.verificarAutenticacao = async function() {
         const prefixo = (nivelAcesso === 'Total') ? 'Dr(a). ' : '';
         nameElement.innerText = prefixo + nome.split(' ')[0];
     }
+
+    // Preenche os campos do Modal de Perfil com os dados atuais do usuário logado
+    const metadata = session.user.user_metadata || {};
+    const inputEmailPerfil = document.getElementById('perfilEmail');
+    const inputNomePerfil = document.getElementById('perfilNome');
+    const inputNascimentoPerfil = document.getElementById('perfilNascimento');
+    const inputCpfPerfil = document.getElementById('perfilCpf');
+    const inputCrmPessoalPerfil = document.getElementById('perfilCrmPessoal');
+
+    if (inputEmailPerfil) inputEmailPerfil.value = session.user.email || '';
+    if (inputNomePerfil) inputNomePerfil.value = metadata.nome_completo || '';
+    if (inputNascimentoPerfil) inputNascimentoPerfil.value = metadata.data_nascimento || '';
+    if (inputCpfPerfil) inputCpfPerfil.value = metadata.cpf || '';
+    if (inputCrmPessoalPerfil) inputCrmPessoalPerfil.value = metadata.crm_pessoal || '';
     
     return { session, crm, nivelAcesso };
 };
