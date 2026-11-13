@@ -24,13 +24,23 @@
             <p class="loading-text">A processar...</p>
         </div>
 
-        <!-- 🧪 BLOCO DE ACESSOS DE TESTE PARA O AVALIADOR -->
+        <!-- 🧪 BLOCO DE ACESSOS DE TESTE PARA O AVALIADOR (CLIQUE RÁPIDO) -->
         <div style="margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); text-align: left; font-size: 13px; color: var(--text-muted);">
-            <strong style="color: var(--text-main); display: block; margin-bottom: 8px;">🧪 Contas de Teste para Avaliação:</strong>
-            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); line-height: 1.5;">
-                <div>👨‍⚕️ <strong>Médico / Admin:</strong><br><span style="user-select: all; color: var(--primary);">medico@teste.com</span> / <span style="user-select: all;">123456</span></div>
-                <div style="margin-top: 6px;">👩‍💼 <strong>Recepção:</strong><br><span style="user-select: all; color: var(--primary);">recepcao@teste.com</span> / <span style="user-select: all;">123456</span></div>
-                <div style="margin-top: 6px;">👩‍💼 <strong>Administração:</strong><br><span style="user-select: all; color: var(--primary);">adm@teste.com</span> / <span style="user-select: all;">123456</span></div>
+            <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">🧪 Contas de Teste para Avaliação:</strong>
+            <small style="display: block; margin-bottom: 10px; color: var(--text-muted);">Clique em um perfil abaixo para preencher automaticamente:</small>
+            <div class="demo-accounts-list">
+                <button type="button" class="demo-account-btn" data-email="medico@teste.com" data-senha="123456">
+                    <span>👨‍⚕️ <strong>Médico / Admin</strong></span>
+                    <code>medico@teste.com</code>
+                </button>
+                <button type="button" class="demo-account-btn" data-email="recepcao@teste.com" data-senha="123456">
+                    <span>👩‍💼 <strong>Recepção</strong></span>
+                    <code>recepcao@teste.com</code>
+                </button>
+                <button type="button" class="demo-account-btn" data-email="adm@teste.com" data-senha="123456">
+                    <span>🏢 <strong>Administração</strong></span>
+                    <code>adm@teste.com</code>
+                </button>
             </div>
         </div>
     </div>

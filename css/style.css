@@ -99,6 +99,43 @@ body {
     text-decoration: underline;
 }
 
+.demo-accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.demo-account-btn {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.demo-account-btn code {
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 12px;
+    background: var(--primary-light);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.demo-account-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+}
+
 /* =========================================
    HEADER SAAS (BARRA SUPERIOR)
    ========================================= */

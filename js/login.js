@@ -12,15 +12,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authCrm = document.getElementById('authCrm');
     const loginTitle = document.getElementById('loginTitle');
     const authLoading = document.getElementById('authLoading');
+    const inputEmail = document.getElementById('authEmail');
+    const inputSenha = document.getElementById('authSenha');
+
+    function aplicarModoLogin() {
+        isLoginMode = true;
+        loginTitle.innerText = "⚕️ CDSS";
+        btnEntrar.innerText = "Acessar Sistema";
+        authCrm.classList.add('hidden');
+        toggleAuthMode.innerHTML = 'Não tem conta? <strong>Registe-se aqui</strong>';
+    }
 
     toggleAuthMode.addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-        if (isLoginMode) {
-            loginTitle.innerText = "Acesso Restrito";
-            btnEntrar.innerText = "Acessar Sistema";
-            authCrm.classList.add('hidden');
-            toggleAuthMode.innerHTML = 'Não tem conta? <strong>Registe-se aqui</strong>';
+        if (!isLoginMode) {
+            aplicarModoLogin();
         } else {
+            isLoginMode = false;
             loginTitle.innerText = "Criar Conta Médica";
             btnEntrar.innerText = "Registar e Acessar";
             authCrm.classList.remove('hidden');
@@ -28,9 +35,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    // Preenchimento rápido com 1 clique nas contas de demonstração
+    document.querySelectorAll('.demo-account-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            aplicarModoLogin();
+            if (inputEmail) inputEmail.value = btn.getAttribute('data-email') || '';
+            if (inputSenha) inputSenha.value = btn.getAttribute('data-senha') || '';
+            if (btnEntrar) btnEntrar.focus();
+        });
+    });
+
     btnEntrar.addEventListener('click', async () => {
-        const email = document.getElementById('authEmail').value.trim();
-        const password = document.getElementById('authSenha').value.trim();
+        const email = inputEmail ? inputEmail.value.trim() : '';
+        const password = inputSenha ? inputSenha.value.trim() : '';
         const crm = authCrm.value.trim();
 
         if (!email || !password) {
