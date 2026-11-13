@@ -198,6 +198,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // Função auxiliar para garantir que CPF, Nascimento e Sexo fiquem salvos na tabela 'pacientes'
+    async function sincronizarCadastroPaciente() {
+        const nome = inputNome ? inputNome.value.trim() : '';
+        const documento = inputDocumento ? inputDocumento.value.trim() : '';
+        const nascimento = inputNascimento && inputNascimento.value ? inputNascimento.value : null;
+        const sexo = selectSexo && selectSexo.value ? selectSexo.value : null;
+
+        if (nome && documento) {
+            const { error: erroUpsert } = await window.clienteSupabase
+                .from('pacientes')
+                .upsert([{
+                    documento: documento,
+                    nome_completo: nome,
+                    data_nascimento: nascimento,
+                    sexo: sexo
+                }], { onConflict: 'documento' });
+
+            if (erroUpsert) {
+                console.warn("Aviso ao sincronizar paciente:", erroUpsert.message);
+            }
+        }
+    }
+
     // ==========================================
     // 5. ANÁLISE COM IA (GEMINI + GROQ) E SALVAMENTO NO SUPABASE
     // ==========================================
@@ -265,7 +288,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (divResultadoTexto) divResultadoTexto.innerHTML = respostaFormatada;
                 if (resultadoBox) resultadoBox.classList.remove('hidden');
 
-                // 2. Salvar no Supabase com o nome do médico
+                // 2. Sincronizar dados cadastrais do paciente e salvar atendimento no Supabase
+                await sincronizarCadastroPaciente();
+
                 let dbError;
                 if (atendimentoId) {
                     const res = await window.clienteSupabase.from('atendimentos').update({ 
@@ -318,6 +343,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnSalvarAnamnese.disabled = true;
 
             try {
+                await sincronizarCadastroPaciente();
+
                 let diagnosticoFinal = 'Atendimento finalizado manualmente.';
                 if (divResultadoTexto && divResultadoTexto.innerText.trim() !== '') {
                     diagnosticoFinal = divResultadoTexto.innerText.trim();
