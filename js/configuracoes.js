@@ -84,6 +84,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <td>${membro.cargo}</td>
                     <td><span class="badge-consultas" style="${badgeStyle}">${membro.nivel_acesso}</span></td>
                     <td class="crud-actions" style="justify-content: center;">
+                        <button class="btn-icon edit" onclick="editarCrmMembro(${membro.id}, '${(membro.cargo || '').replace(/'/g, "\\'")}')" title="Definir / Editar CRM Individual">✏️</button>
                         <button class="btn-icon delete" onclick="removerMembro(${membro.id})" title="Revogar Acesso">🗑️</button>
                     </td>
                 </tr>
@@ -106,6 +107,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!nome || !email || !senha) {
                 alert("E-mail, Senha e Nome são obrigatórios para criar um acesso.");
+                return;
+            }
+
+            if ((acesso === 'Total' || cargoBase.toLowerCase().includes('médico')) && !crmIndividual) {
+                alert("Para cadastrar um Médico, informe o CRM individual do profissional.");
                 return;
             }
 
@@ -175,6 +181,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
         console.log("❌ ERRO: Botão 'btnAdicionarMembro' não encontrado no HTML.");
     }
+
+    // ==========================================
+    // EDITAR CRM DE UM MÉDICO JÁ CADASTRADO NA EQUIPE
+    // ==========================================
+    window.editarCrmMembro = async function(id, cargoAtual) {
+        const matchAtual = (cargoAtual || '').match(/CRM:\s*([^\)]+)/i);
+        const crmAtual = matchAtual ? matchAtual[1].trim() : '';
+        const novoCrm = await window.mostrarPrompt(
+            "Informe o CRM individual deste médico:",
+            crmAtual,
+            { titulo: 'Editar CRM do Médico', placeholder: 'Ex: 123456-SP' }
+        );
+        if (novoCrm === null) return; // Cancelou
+
+        const cargoBase = (cargoAtual || 'Médico Plantonista').replace(/\s*\(CRM:.*?\)/i, '').trim();
+        const cargoAtualizado = novoCrm.trim() ? `${cargoBase} (CRM: ${novoCrm.trim()})` : cargoBase;
+
+        try {
+            const { error: updateError } = await clienteSupabase
+                .from('equipe')
+                .update({ cargo: cargoAtualizado })
+                .eq('id', id);
+
+            if (updateError) throw updateError;
+            await window.mostrarAlerta("CRM do profissional atualizado com sucesso!", "sucesso");
+            carregarEquipe();
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao atualizar o CRM do membro.");
+        }
+    };
 
     // ==========================================
     // REMOVER MEMBRO DA EQUIPA

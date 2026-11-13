@@ -51,26 +51,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             optionTitular.value = labelTitular;
             datalistMedicos.appendChild(optionTitular);
 
-            // 2. Adiciona os médicos cadastrados na equipe com seus respectivos CRMs
+            // 2. Adiciona os médicos cadastrados na equipe com seus respectivos CRMs PRÓPRIOS
             if (medicos && medicos.length > 0) {
                 medicos.forEach(membro => {
                     const cargoStr = membro.cargo || '';
                     if (membro.nivel_acesso === 'Total' || cargoStr.toLowerCase().includes('médico')) {
-                        // Extrai CRM se estiver salvo no cargo, ex: "Médico Plantonista (CRM: 12345-SP)" ou no nome
+                        // Extrai apenas o CRM próprio do médico (nunca usa o CRM do titular como fallback)
                         const matchCrmCargo = cargoStr.match(/CRM:\s*([^\)]+)/i);
                         const matchCrmNome = (membro.nome || '').match(/CRM:\s*([^\)]+)/i);
-                        const crmExtraido = matchCrmCargo
+                        const crmProprio = matchCrmCargo
                             ? matchCrmCargo[1].trim()
-                            : (matchCrmNome ? matchCrmNome[1].trim() : tenantCrm);
+                            : (matchCrmNome ? matchCrmNome[1].trim() : '');
 
                         const nomeLimpo = (membro.nome || '').replace(/\s*\(CRM:.*?\)/i, '').trim();
                         const nomeAlocacao = `Dr(a). ${nomeLimpo}`;
-                        const labelOpcao = `${nomeAlocacao} (CRM: ${crmExtraido})`;
+                        const labelOpcao = crmProprio
+                            ? `${nomeAlocacao} (CRM: ${crmProprio})`
+                            : `${nomeAlocacao} (Sem CRM cadastrado)`;
 
                         listaMedicosClinica.push({
                             exibicao: labelOpcao,
                             nomeAlocacao: labelOpcao,
-                            crm: crmExtraido.toLowerCase(),
+                            crm: crmProprio.toLowerCase(),
                             nome: nomeLimpo.toLowerCase()
                         });
 
@@ -93,8 +95,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!termo) return;
             const encontrado = listaMedicosClinica.find(m =>
                 m.exibicao.toLowerCase() === termo ||
-                m.crm === termo ||
-                m.crm.includes(termo) ||
+                (m.crm && (m.crm === termo || m.crm.includes(termo))) ||
                 m.nome.includes(termo)
             );
             if (encontrado) {

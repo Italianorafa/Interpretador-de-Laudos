@@ -123,6 +123,60 @@ window.mostrarConfirmacao = function(mensagem, opcoes = {}) {
     });
 };
 
+window.mostrarPrompt = function(mensagem, valorInicial = '', opcoes = {}) {
+    return new Promise((resolve) => {
+        const titulo = opcoes.titulo || 'Editar Informação';
+        const placeholder = opcoes.placeholder || 'Digite aqui...';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'cdss-alert-overlay';
+        overlay.innerHTML = `
+            <div class="cdss-alert-box" role="dialog" aria-modal="true">
+                <div class="cdss-alert-icon info">✏️</div>
+                <h3 class="cdss-alert-title">${titulo}</h3>
+                <div class="cdss-alert-message" style="margin-bottom: 14px;">${String(mensagem || '').replace(/\n/g, '<br>')}</div>
+                <input type="text" class="cdss-prompt-input" value="${String(valorInicial || '').replace(/"/g, '&quot;')}" placeholder="${placeholder}" style="margin-bottom: 20px; text-align: center;">
+                <div class="cdss-alert-actions">
+                    <button type="button" class="btn-secondary cdss-prompt-cancel">Cancelar</button>
+                    <button type="button" class="action-btn cdss-prompt-ok">Salvar</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('.cdss-prompt-input');
+        const btnOk = overlay.querySelector('.cdss-prompt-ok');
+        const btnCancel = overlay.querySelector('.cdss-prompt-cancel');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+
+        function finalizar(valor) {
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+            resolve(valor);
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                finalizar(null);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                finalizar(input ? input.value : '');
+            }
+        }
+
+        btnOk.addEventListener('click', () => finalizar(input ? input.value : ''));
+        btnCancel.addEventListener('click', () => finalizar(null));
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) finalizar(null);
+        });
+        document.addEventListener('keydown', onKey);
+    });
+};
+
 // Substitui o alert nativo do navegador pelo modal estilizado do CDSS
 window.alert = function(mensagem) {
     return window.mostrarAlerta(mensagem);
@@ -284,6 +338,7 @@ window.verificarAutenticacao = async function() {
     }
     
     const crm = session.user.user_metadata.crm || 'CRM-INDEFINIDO';
+    const crmPessoal = session.user.user_metadata.crm_pessoal || '';
     const nivelAcesso = session.user.user_metadata.acesso_level || 'Total'; 
     const nome = session.user.user_metadata.nome_completo || crm;
     
@@ -348,11 +403,31 @@ window.verificarAutenticacao = async function() {
         }
     });
 
-    // Configura o cabeçalho visualmente
+    // Se o médico faz parte da equipe, busca eventual CRM cadastrado pelo Admin na tabela 'equipe'
+    let crmExibicao = crmPessoal || (!session.user.user_metadata.acesso_level ? crm : 'Sem CRM');
+    if (session.user.email && session.user.user_metadata.acesso_level) {
+        try {
+            const { data: membroEq } = await window.clienteSupabase
+                .from('equipe')
+                .select('cargo')
+                .eq('email', session.user.email)
+                .maybeSingle();
+            if (membroEq && membroEq.cargo) {
+                const matchCrm = membroEq.cargo.match(/CRM:\s*([^\)]+)/i);
+                if (matchCrm && matchCrm[1]) {
+                    crmExibicao = matchCrm[1].trim();
+                }
+            }
+        } catch (e) {
+            console.warn("Aviso ao consultar CRM na equipe:", e);
+        }
+    }
+
+    // Configura o cabeçalho visualmente (mostra o CRM pessoal do médico, não o do titular da clínica)
     const crmElement = document.getElementById('medicoLogadoCrm');
     const nameElement = document.getElementById('medicoLogadoName');
     if (crmElement && nameElement) {
-        crmElement.innerText = crm;
+        crmElement.innerText = (nivelAcesso === 'Agendamento' || nivelAcesso === 'Administrativo') ? crm : crmExibicao;
         const prefixo = (nivelAcesso === 'Total') ? 'Dr(a). ' : '';
         nameElement.innerText = prefixo + nome.split(' ')[0];
     }
@@ -369,9 +444,9 @@ window.verificarAutenticacao = async function() {
     if (inputNomePerfil) inputNomePerfil.value = metadata.nome_completo || '';
     if (inputNascimentoPerfil) inputNascimentoPerfil.value = metadata.data_nascimento || '';
     if (inputCpfPerfil) inputCpfPerfil.value = metadata.cpf || '';
-    if (inputCrmPessoalPerfil) inputCrmPessoalPerfil.value = metadata.crm_pessoal || '';
+    if (inputCrmPessoalPerfil) inputCrmPessoalPerfil.value = metadata.crm_pessoal || (crmExibicao !== 'Sem CRM' ? crmExibicao : '');
     
-    return { session, crm, nivelAcesso };
+    return { session, crm, crmPessoal: crmExibicao, nivelAcesso };
 };
 
 // ==========================================
