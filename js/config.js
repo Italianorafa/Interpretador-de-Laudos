@@ -338,16 +338,45 @@ window.verificarAutenticacao = async function() {
     }
     
     const crm = session.user.user_metadata.crm || 'CRM-INDEFINIDO';
-    const crmPessoal = session.user.user_metadata.crm_pessoal || '';
-    const nivelAcesso = session.user.user_metadata.acesso_level || 'Total'; 
-    const nome = session.user.user_metadata.nome_completo || crm;
+    let crmPessoal = session.user.user_metadata.crm_pessoal || '';
+    let nivelAcesso = session.user.user_metadata.acesso_level || 'Total'; 
+    let nome = session.user.user_metadata.nome_completo || crm;
+    const isContaTitular = !session.user.user_metadata.acesso_level;
+
+    // Se o utilizador consta na tabela 'equipe', sincroniza Nome, Cargo/CRM e Nível de Acesso definidos pelo Admin
+    let crmExibicao = crmPessoal || (isContaTitular ? crm : 'Sem CRM');
+    if (session.user.email) {
+        try {
+            const { data: membroEq } = await window.clienteSupabase
+                .from('equipe')
+                .select('nome, cargo, nivel_acesso')
+                .eq('email', session.user.email)
+                .maybeSingle();
+            if (membroEq) {
+                if (membroEq.nome) nome = membroEq.nome;
+                if (membroEq.nivel_acesso && !isContaTitular) {
+                    nivelAcesso = membroEq.nivel_acesso;
+                }
+                if (membroEq.cargo) {
+                    const matchCrm = membroEq.cargo.match(/CRM:\s*([^\)]+)/i);
+                    if (matchCrm && matchCrm[1]) {
+                        crmExibicao = matchCrm[1].trim();
+                    } else if (!isContaTitular && !crmPessoal) {
+                        crmExibicao = 'Sem CRM';
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Aviso ao consultar dados atualizados na equipe:", e);
+        }
+    }
     
     const paginaAtual = window.location.pathname.toLowerCase();
     const btnConfig = document.querySelector('.settings-icon');
 
     // Regras da Recepção (Agendamento)
     if (nivelAcesso === 'Agendamento') {
-        if (paginaAtual.includes('consulta.html') || paginaAtual.includes('pacientes.html') || paginaAtual.includes('configuracoes.html')) {
+        if (paginaAtual.includes('consulta.html') || paginaAtual.includes('pacientes.html') || paginaAtual.includes('configuracoes.html') || paginaAtual.includes('fila.html')) {
             window.location.href = 'recepcao.html';
             return null;
         }
@@ -403,26 +432,6 @@ window.verificarAutenticacao = async function() {
         }
     });
 
-    // Se o médico faz parte da equipe, busca eventual CRM cadastrado pelo Admin na tabela 'equipe'
-    let crmExibicao = crmPessoal || (!session.user.user_metadata.acesso_level ? crm : 'Sem CRM');
-    if (session.user.email && session.user.user_metadata.acesso_level) {
-        try {
-            const { data: membroEq } = await window.clienteSupabase
-                .from('equipe')
-                .select('cargo')
-                .eq('email', session.user.email)
-                .maybeSingle();
-            if (membroEq && membroEq.cargo) {
-                const matchCrm = membroEq.cargo.match(/CRM:\s*([^\)]+)/i);
-                if (matchCrm && matchCrm[1]) {
-                    crmExibicao = matchCrm[1].trim();
-                }
-            }
-        } catch (e) {
-            console.warn("Aviso ao consultar CRM na equipe:", e);
-        }
-    }
-
     // Configura o cabeçalho visualmente (mostra o CRM pessoal do médico, não o do titular da clínica)
     const crmElement = document.getElementById('medicoLogadoCrm');
     const nameElement = document.getElementById('medicoLogadoName');
@@ -441,12 +450,12 @@ window.verificarAutenticacao = async function() {
     const inputCrmPessoalPerfil = document.getElementById('perfilCrmPessoal');
 
     if (inputEmailPerfil) inputEmailPerfil.value = session.user.email || '';
-    if (inputNomePerfil) inputNomePerfil.value = metadata.nome_completo || '';
+    if (inputNomePerfil) inputNomePerfil.value = nome || metadata.nome_completo || '';
     if (inputNascimentoPerfil) inputNascimentoPerfil.value = metadata.data_nascimento || '';
     if (inputCpfPerfil) inputCpfPerfil.value = metadata.cpf || '';
-    if (inputCrmPessoalPerfil) inputCrmPessoalPerfil.value = metadata.crm_pessoal || (crmExibicao !== 'Sem CRM' ? crmExibicao : '');
+    if (inputCrmPessoalPerfil) inputCrmPessoalPerfil.value = (crmExibicao !== 'Sem CRM' && !isContaTitular) ? crmExibicao : (metadata.crm_pessoal || '');
     
-    return { session, crm, crmPessoal: crmExibicao, nivelAcesso };
+    return { session, crm, crmPessoal: crmExibicao, nivelAcesso, nome, isContaTitular };
 };
 
 // ==========================================

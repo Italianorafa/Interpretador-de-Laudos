@@ -8,10 +8,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 2. Descobrir a identidade do utilizador logado
     const metadata = authData.session.user.user_metadata;
     // A conta raiz (criada no login) não tem 'acesso_level' definido no momento da criação
-    const isContaTitular = !metadata.acesso_level; 
-    const nomeUsuarioLogado = metadata.nome_completo;
-    const crmPessoalLogado = (metadata.crm_pessoal || '').trim().toLowerCase();
+    const isContaTitular = authData.isContaTitular !== undefined ? authData.isContaTitular : !metadata.acesso_level; 
+    const isAdmin = isContaTitular || nivelAcesso === 'Administrativo';
+    const nomeUsuarioLogado = authData.nome || metadata.nome_completo;
+    const crmPessoalLogado = ((authData.crmPessoal && authData.crmPessoal !== 'Sem CRM') ? authData.crmPessoal : (metadata.crm_pessoal || '')).trim().toLowerCase();
     const nomeFormatadoLogado = nomeUsuarioLogado ? `Dr(a). ${nomeUsuarioLogado}` : "Médico Titular";
+
+    const selectFiltroAdmin = document.getElementById('filtroFilaAdmin');
+    const subtituloFila = document.getElementById('subtituloFila');
+
+    // Se for Administrador (Titular ou Administrativo), exibe o seletor de visão completa
+    if (isAdmin && selectFiltroAdmin) {
+        if (isContaTitular) {
+            selectFiltroAdmin.style.display = 'inline-block';
+            selectFiltroAdmin.addEventListener('change', () => window.carregarFila());
+        }
+        if (subtituloFila) {
+            subtituloFila.innerText = "Visão de Administrador: acompanhando a fila completa de todos os médicos da clínica.";
+        }
+    }
 
     // Pesos e estilos do Protocolo de Manchester
     const mapaPrioridades = {
@@ -50,7 +65,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             // ==========================================
             // FILTRO INTELIGENTE DE DIRECIONAMENTO
             // ==========================================
+            const modoFiltroAdmin = (selectFiltroAdmin && selectFiltroAdmin.value) ? selectFiltroAdmin.value : 'todos';
+
             const pacientesParaMim = pacientes.filter(paciente => {
+                // Se o utilizador é Administrador (Titular ou Administrativo) e está no modo "todos", vê a fila completa da clínica!
+                if (isAdmin && modoFiltroAdmin === 'todos') return true;
+                if (nivelAcesso === 'Leitura') return true;
+
                 const anamnese = paciente.anamnese || "";
                 const match = anamnese.match(/\[MÉDICO ALOCADO:\s(.*?)\]/);
                 
@@ -67,11 +88,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                     // 3. Se foi direcionado ao "Médico Titular" e eu sou o dono da clínica
                     if (medicoAlocadoLower.startsWith("médico titular") && isContaTitular) return true;
-                    
-                    // 4. Perfis administrativos ou de leitura visualizam toda a fila da clínica
-                    if (nivelAcesso === 'Administrativo' || nivelAcesso === 'Leitura') return true;
 
-                    // 5. Se tem o nome de outro médico, ESCONDE!
+                    // 4. Se tem o nome de outro médico, ESCONDE!
                     return false;
                 }
                 

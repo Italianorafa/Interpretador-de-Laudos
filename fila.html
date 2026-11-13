@@ -32,9 +32,18 @@
 
     <div class="container">
         <main>
-            <div class="section-header">
-                <h2>Pacientes Aguardando Atendimento</h2>
-                <button class="btn-secondary" onclick="carregarFila()">🔄 Atualizar Fila</button>
+            <div class="section-header" style="flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h2 style="margin-bottom: 4px;">Pacientes Aguardando Atendimento</h2>
+                    <span id="subtituloFila" style="font-size: 13px; color: var(--text-muted);">Pacientes aguardando atendimento na clínica</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <select id="filtroFilaAdmin" style="display: none; width: auto; margin-bottom: 0; padding: 8px 14px; font-size: 13px; font-weight: 600;">
+                        <option value="todos">🏥 Fila Completa da Clínica (Todos)</option>
+                        <option value="meus">👨‍⚕️ Apenas Direcionados a Mim / Fila Geral</option>
+                    </select>
+                    <button class="btn-secondary" onclick="carregarFila()">🔄 Atualizar Fila</button>
+                </div>
             </div>
 
             <!-- Cartões dos pacientes injetados pelo JavaScript -->

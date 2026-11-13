@@ -141,6 +141,59 @@
         </div>
     </div>
 
+    <!-- Modal de Edição de Usuário e Permissões (Equipe) -->
+    <div id="modalEditarMembro" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Informações e Permissões</h3>
+                <button id="btnFecharModalMembro" class="close-modal">✖</button>
+            </div>
+
+            <input type="hidden" id="editIdMembro">
+
+            <div class="form-grid-2" style="margin-bottom: 20px;">
+                <div class="col-span-2">
+                    <label for="editEmailMembro">E-mail de Acesso:</label>
+                    <input type="email" id="editEmailMembro" disabled>
+                </div>
+
+                <div class="col-span-2">
+                    <label for="editNomeMembro">Nome do Profissional:</label>
+                    <input type="text" id="editNomeMembro" placeholder="Ex: Ana Souza">
+                </div>
+
+                <div>
+                    <label for="editCargoMembro">Cargo / Função:</label>
+                    <select id="editCargoMembro">
+                        <option value="Médico Plantonista">Médico Plantonista</option>
+                        <option value="Enfermeiro(a) Triagem">Enfermeiro(a) Triagem</option>
+                        <option value="Atendente / Recepção">Atendente / Recepção</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="editCrmMembro">CRM Individual (Médicos):</label>
+                    <input type="text" id="editCrmMembro" placeholder="Ex: 123456-SP">
+                </div>
+
+                <div class="col-span-2">
+                    <label for="editAcessoMembro">Permissão do Sistema (Nível de Acesso):</label>
+                    <select id="editAcessoMembro">
+                        <option value="Total">Médico (Acesso Total Clínico e Administrativo)</option>
+                        <option value="Administrativo">Administrativo (Gestão de Equipe, Recepção e Fila Completa)</option>
+                        <option value="Agendamento">Recepção (Apenas Cadastro de Pacientes)</option>
+                        <option value="Leitura">Leitura (Apenas visualização de histórico e fila)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="btnCancelarEdicaoMembro" class="btn-secondary">Cancelar</button>
+                <button id="btnSalvarEdicaoMembro" class="action-btn">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/configuracoes.js"></script>
 </body>

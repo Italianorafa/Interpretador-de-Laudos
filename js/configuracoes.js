@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const tabela = document.getElementById('tabelaEquipe');
     const btnAdicionar = document.getElementById('btnAdicionarMembro');
+    let listaMembros = [];
 
     // ==========================================
     // CARREGAR LISTA DA EQUIPA
@@ -46,6 +47,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        listaMembros = dadosEquipe || [];
         tabela.innerHTML = '';
 
         // Mostra o próprio Administrador de forma fixa no topo
@@ -84,7 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <td>${membro.cargo}</td>
                     <td><span class="badge-consultas" style="${badgeStyle}">${membro.nivel_acesso}</span></td>
                     <td class="crud-actions" style="justify-content: center;">
-                        <button class="btn-icon edit" onclick="editarCrmMembro(${membro.id}, '${(membro.cargo || '').replace(/'/g, "\\'")}')" title="Definir / Editar CRM Individual">✏️</button>
+                        <button class="btn-icon edit" onclick="abrirModalEditarMembro(${membro.id})" title="Editar Informações e Permissões">✏️</button>
                         <button class="btn-icon delete" onclick="removerMembro(${membro.id})" title="Revogar Acesso">🗑️</button>
                     </td>
                 </tr>
@@ -183,35 +185,96 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // ==========================================
-    // EDITAR CRM DE UM MÉDICO JÁ CADASTRADO NA EQUIPE
+    // EDITAR INFORMAÇÕES E PERMISSÕES DE MEMBRO DA EQUIPE
     // ==========================================
-    window.editarCrmMembro = async function(id, cargoAtual) {
-        const matchAtual = (cargoAtual || '').match(/CRM:\s*([^\)]+)/i);
-        const crmAtual = matchAtual ? matchAtual[1].trim() : '';
-        const novoCrm = await window.mostrarPrompt(
-            "Informe o CRM individual deste médico:",
-            crmAtual,
-            { titulo: 'Editar CRM do Médico', placeholder: 'Ex: 123456-SP' }
-        );
-        if (novoCrm === null) return; // Cancelou
+    const modalEditarMembro = document.getElementById('modalEditarMembro');
+    const btnFecharModalMembro = document.getElementById('btnFecharModalMembro');
+    const btnCancelarEdicaoMembro = document.getElementById('btnCancelarEdicaoMembro');
+    const btnSalvarEdicaoMembro = document.getElementById('btnSalvarEdicaoMembro');
 
-        const cargoBase = (cargoAtual || 'Médico Plantonista').replace(/\s*\(CRM:.*?\)/i, '').trim();
-        const cargoAtualizado = novoCrm.trim() ? `${cargoBase} (CRM: ${novoCrm.trim()})` : cargoBase;
+    function fecharModalEdicao() {
+        if (modalEditarMembro) modalEditarMembro.style.display = 'none';
+    }
 
-        try {
-            const { error: updateError } = await clienteSupabase
-                .from('equipe')
-                .update({ cargo: cargoAtualizado })
-                .eq('id', id);
+    if (btnFecharModalMembro) btnFecharModalMembro.addEventListener('click', fecharModalEdicao);
+    if (btnCancelarEdicaoMembro) btnCancelarEdicaoMembro.addEventListener('click', fecharModalEdicao);
+    if (modalEditarMembro) {
+        modalEditarMembro.addEventListener('click', (e) => {
+            if (e.target === modalEditarMembro) fecharModalEdicao();
+        });
+    }
 
-            if (updateError) throw updateError;
-            await window.mostrarAlerta("CRM do profissional atualizado com sucesso!", "sucesso");
-            carregarEquipe();
-        } catch (err) {
-            console.error(err);
-            alert("Erro ao atualizar o CRM do membro.");
+    window.abrirModalEditarMembro = function(id) {
+        const membro = listaMembros.find(m => m.id === id);
+        if (!membro || !modalEditarMembro) return;
+
+        const matchCrm = (membro.cargo || '').match(/CRM:\s*([^\)]+)/i);
+        const crmExtraido = matchCrm ? matchCrm[1].trim() : '';
+        const cargoBase = (membro.cargo || 'Médico Plantonista').replace(/\s*\(CRM:.*?\)/i, '').trim();
+
+        document.getElementById('editIdMembro').value = membro.id;
+        document.getElementById('editEmailMembro').value = membro.email || '';
+        document.getElementById('editNomeMembro').value = membro.nome || '';
+        document.getElementById('editCrmMembro').value = crmExtraido;
+        document.getElementById('editAcessoMembro').value = membro.nivel_acesso || 'Total';
+
+        const selectCargo = document.getElementById('editCargoMembro');
+        if (selectCargo) {
+            const opcoesCargo = Array.from(selectCargo.options).map(o => o.value);
+            selectCargo.value = opcoesCargo.includes(cargoBase) ? cargoBase : 'Médico Plantonista';
         }
+
+        modalEditarMembro.style.display = 'flex';
     };
+
+    if (btnSalvarEdicaoMembro) {
+        btnSalvarEdicaoMembro.addEventListener('click', async () => {
+            const id = Number(document.getElementById('editIdMembro').value);
+            const novoNome = document.getElementById('editNomeMembro').value.trim();
+            const novoCargoBase = document.getElementById('editCargoMembro').value;
+            const novoCrm = document.getElementById('editCrmMembro').value.trim();
+            const novoNivelAcesso = document.getElementById('editAcessoMembro').value;
+
+            if (!novoNome) {
+                alert("O nome do profissional é obrigatório.");
+                return;
+            }
+
+            if ((novoNivelAcesso === 'Total' || novoCargoBase.toLowerCase().includes('médico')) && !novoCrm) {
+                alert("Para o cargo ou permissão de Médico, informe o CRM individual do profissional.");
+                return;
+            }
+
+            const cargoAtualizado = novoCrm ? `${novoCargoBase} (CRM: ${novoCrm})` : novoCargoBase;
+
+            const textoOriginal = btnSalvarEdicaoMembro.innerText;
+            btnSalvarEdicaoMembro.innerText = "Salvando...";
+            btnSalvarEdicaoMembro.disabled = true;
+
+            try {
+                const { error: updateError } = await clienteSupabase
+                    .from('equipe')
+                    .update({
+                        nome: novoNome,
+                        cargo: cargoAtualizado,
+                        nivel_acesso: novoNivelAcesso
+                    })
+                    .eq('id', id);
+
+                if (updateError) throw updateError;
+
+                fecharModalEdicao();
+                await window.mostrarAlerta("Informações e permissões do usuário atualizadas com sucesso!", "sucesso");
+                carregarEquipe();
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao atualizar dados do usuário: " + err.message);
+            } finally {
+                btnSalvarEdicaoMembro.innerText = textoOriginal;
+                btnSalvarEdicaoMembro.disabled = false;
+            }
+        });
+    }
 
     // ==========================================
     // REMOVER MEMBRO DA EQUIPA
