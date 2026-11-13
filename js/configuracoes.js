@@ -99,7 +99,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const email = document.getElementById('emailAcesso').value.trim();
             const senha = document.getElementById('senhaAcesso').value.trim();
             const nome = document.getElementById('nomeMembro').value.trim();
-            const cargo = document.getElementById('cargoMembro').value;
+            const cargoBase = document.getElementById('cargoMembro').value;
+            const crmIndividual = document.getElementById('crmMembro') ? document.getElementById('crmMembro').value.trim() : '';
+            const cargo = crmIndividual ? `${cargoBase} (CRM: ${crmIndividual})` : cargoBase;
             const acesso = document.getElementById('acessoMembro').value;
 
             if (!nome || !email || !senha) {
@@ -134,7 +136,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         data: { 
                             crm: medicoAdminCrm, // Vincula ao tenant da clínica
                             nome_completo: nome,
-                            acesso_level: acesso
+                            acesso_level: acesso,
+                            crm_pessoal: crmIndividual
                         } 
                     }
                 });
@@ -156,6 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 document.getElementById('emailAcesso').value = '';
                 document.getElementById('senhaAcesso').value = '';
                 document.getElementById('nomeMembro').value = '';
+                if (document.getElementById('crmMembro')) document.getElementById('crmMembro').value = '';
                 
                 alert(`Acesso criado com sucesso!\nO profissional ${nome} já pode fazer login com o e-mail: ${email}`);
                 carregarEquipe(); 

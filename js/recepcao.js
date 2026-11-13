@@ -17,8 +17,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btnSalvar = document.getElementById('btnSalvarAdmissao');
     const btnBuscarPaciente = document.getElementById('btnBuscarPaciente');
 
+    // Mapa local para permitir busca tanto por Nome quanto por CRM
+    let listaMedicosClinica = [];
+
     // ==========================================
-    // 2. CARREGAR MÉDICOS NA LISTA
+    // 2. CARREGAR MÉDICOS NA LISTA (NOME + CRM)
     // ==========================================
     async function carregarMedicos() {
         if (!datalistMedicos) return;
@@ -31,16 +34,47 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (error) throw error;
             
-            datalistMedicos.innerHTML = ''; 
+            datalistMedicos.innerHTML = '';
+            listaMedicosClinica = [];
+
+            // 1. Adiciona o Médico Titular com o CRM da Clínica
+            const labelTitular = `Médico Titular (CRM: ${tenantCrm})`;
+            listaMedicosClinica.push({
+                exibicao: labelTitular,
+                nomeAlocacao: "Médico Titular",
+                crm: tenantCrm.toLowerCase(),
+                nome: "médico titular"
+            });
+
             const optionTitular = document.createElement('option');
-            optionTitular.value = "Médico Titular";
+            optionTitular.value = labelTitular;
             datalistMedicos.appendChild(optionTitular);
 
+            // 2. Adiciona os médicos cadastrados na equipe com seus respectivos CRMs
             if (medicos && medicos.length > 0) {
                 medicos.forEach(membro => {
-                    if (membro.nivel_acesso === 'Total' || membro.cargo.toLowerCase().includes('médico')) {
+                    const cargoStr = membro.cargo || '';
+                    if (membro.nivel_acesso === 'Total' || cargoStr.toLowerCase().includes('médico')) {
+                        // Extrai CRM se estiver salvo no cargo, ex: "Médico Plantonista (CRM: 12345-SP)" ou no nome
+                        const matchCrmCargo = cargoStr.match(/CRM:\s*([^\)]+)/i);
+                        const matchCrmNome = (membro.nome || '').match(/CRM:\s*([^\)]+)/i);
+                        const crmExtraido = matchCrmCargo
+                            ? matchCrmCargo[1].trim()
+                            : (matchCrmNome ? matchCrmNome[1].trim() : tenantCrm);
+
+                        const nomeLimpo = (membro.nome || '').replace(/\s*\(CRM:.*?\)/i, '').trim();
+                        const nomeAlocacao = `Dr(a). ${nomeLimpo}`;
+                        const labelOpcao = `${nomeAlocacao} (CRM: ${crmExtraido})`;
+
+                        listaMedicosClinica.push({
+                            exibicao: labelOpcao,
+                            nomeAlocacao: labelOpcao,
+                            crm: crmExtraido.toLowerCase(),
+                            nome: nomeLimpo.toLowerCase()
+                        });
+
                         const option = document.createElement('option');
-                        option.value = `Dr(a). ${membro.nome}`; 
+                        option.value = labelOpcao;
                         datalistMedicos.appendChild(option);
                     }
                 });
@@ -50,6 +84,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
     carregarMedicos();
+
+    // Se o utilizador digitar apenas o número do CRM no campo e sair dele, autocompleta com o médico correspondente
+    if (inputMedico) {
+        inputMedico.addEventListener('change', () => {
+            const termo = inputMedico.value.trim().toLowerCase();
+            if (!termo) return;
+            const encontrado = listaMedicosClinica.find(m =>
+                m.exibicao.toLowerCase() === termo ||
+                m.crm === termo ||
+                m.crm.includes(termo) ||
+                m.nome.includes(termo)
+            );
+            if (encontrado) {
+                inputMedico.value = encontrado.exibicao;
+            }
+        });
+    }
 
     // ==========================================
     // 3. BUSCAR CADASTRO DO PACIENTE POR CPF
@@ -80,13 +131,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     if (selectSexo && data.sexo) selectSexo.value = data.sexo;
                     if (inputContato) inputContato.value = data.contato || '';
                     
-                    // Alerta visual discreto (opcional, pode remover se achar chato)
                     alert(`✅ Cadastro de ${data.nome_completo} encontrado!`);
                 } else {
                     alert("Este paciente não tem cadastro. Pode preencher os dados, ele será guardado automaticamente ao salvar a ficha.");
                 }
             } catch (error) {
-                // O Supabase retorna erro se não encontrar a linha, é normal
                 alert("Paciente não encontrado. Novo cadastro será gerado.");
             } finally {
                 btnBuscarPaciente.innerText = "🔍 Buscar";
@@ -106,11 +155,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             const sexo = selectSexo && selectSexo.value ? selectSexo.value : null;
             const contato = inputContato ? inputContato.value.trim() : null;
             const motivo = inputMotivo ? inputMotivo.value.trim() : 'Sem motivo registado';
-            const medicoSelecionado = inputMedico ? inputMedico.value.trim() : null; 
+            let medicoSelecionado = inputMedico ? inputMedico.value.trim() : null; 
 
             if (!nome) {
                 alert("O Nome do Paciente é obrigatório.");
                 return;
+            }
+
+            // Resolve caso a recepção tenha digitado apenas o número do CRM sem clicar na sugestão
+            if (medicoSelecionado) {
+                const termo = medicoSelecionado.toLowerCase();
+                const encontrado = listaMedicosClinica.find(m =>
+                    m.exibicao.toLowerCase() === termo ||
+                    m.crm === termo ||
+                    m.crm.includes(termo) ||
+                    m.nome.includes(termo)
+                );
+                if (encontrado) {
+                    medicoSelecionado = encontrado.exibicao;
+                }
             }
 
             const textoOriginal = btnSalvar.innerText;
@@ -145,7 +208,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const dadosInsercao = {
                     nome_paciente: nome,
                     anamnese: textoTriagem,
-                    diagnostico_ia: 'Aguardando avaliação médica.', // Tag correta para o fila.js ler
+                    diagnostico_ia: 'Aguardando avaliação médica.',
                     medico_crm: tenantCrm 
                 };
 

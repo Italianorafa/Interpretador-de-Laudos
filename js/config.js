@@ -151,6 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnSalvarPerfil) {
         btnSalvarPerfil.addEventListener('click', async () => {
             // Busca pelos IDs corretos definidos no HTML do Modal
+            const inputEmailPerfil = document.getElementById('perfilEmail');
             const inputNomePerfil = document.getElementById('perfilNome');
             const inputNascimentoPerfil = document.getElementById('perfilNascimento');
             const inputCpfPerfil = document.getElementById('perfilCpf');
@@ -164,16 +165,37 @@ document.addEventListener("DOMContentLoaded", () => {
             btnSalvarPerfil.disabled = true;
 
             try {
+                const crmPessoalValor = inputCrmPessoalPerfil ? inputCrmPessoalPerfil.value.trim() : '';
+                const emailUsuario = inputEmailPerfil ? inputEmailPerfil.value.trim() : '';
+
                 const { error } = await window.clienteSupabase.auth.updateUser({
                     data: {
                         nome_completo: novoNome,
                         data_nascimento: inputNascimentoPerfil ? inputNascimentoPerfil.value : '',
                         cpf: inputCpfPerfil ? inputCpfPerfil.value.trim() : '',
-                        crm_pessoal: inputCrmPessoalPerfil ? inputCrmPessoalPerfil.value.trim() : ''
+                        crm_pessoal: crmPessoalValor
                     }
                 });
 
                 if (error) throw error;
+
+                // Sincroniza o nome e o CRM pessoal na tabela 'equipe' para a busca da recepção
+                if (emailUsuario) {
+                    const { data: registoEquipe } = await window.clienteSupabase
+                        .from('equipe')
+                        .select('id, cargo')
+                        .eq('email', emailUsuario)
+                        .maybeSingle();
+
+                    if (registoEquipe) {
+                        const cargoLimpo = (registoEquipe.cargo || 'Médico Plantonista').replace(/\s*\(CRM:.*?\)/i, '').trim();
+                        const novoCargo = crmPessoalValor ? `${cargoLimpo} (CRM: ${crmPessoalValor})` : cargoLimpo;
+                        await window.clienteSupabase
+                            .from('equipe')
+                            .update({ nome: novoNome, cargo: novoCargo })
+                            .eq('id', registoEquipe.id);
+                    }
+                }
 
                 alert("Dados pessoais atualizados com sucesso!");
                 if (modalPerfil) modalPerfil.style.display = 'none';

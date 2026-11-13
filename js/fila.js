@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // A conta raiz (criada no login) não tem 'acesso_level' definido no momento da criação
     const isContaTitular = !metadata.acesso_level; 
     const nomeUsuarioLogado = metadata.nome_completo;
+    const crmPessoalLogado = (metadata.crm_pessoal || '').trim().toLowerCase();
     const nomeFormatadoLogado = nomeUsuarioLogado ? `Dr(a). ${nomeUsuarioLogado}` : "Médico Titular";
     
     window.carregarFila = async function() {
@@ -39,17 +40,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // Se o paciente FOI direcionado a alguém específico na receção
                 if (match) {
                     const medicoAlocado = match[1].trim();
+                    const medicoAlocadoLower = medicoAlocado.toLowerCase();
                     
-                    // 1. Se foi direcionado exatamente para o meu nome
-                    if (medicoAlocado === nomeFormatadoLogado) return true;
+                    // 1. Se foi direcionado para o meu nome (com ou sem sufixo de CRM)
+                    if (medicoAlocado === nomeFormatadoLogado || medicoAlocadoLower.startsWith(nomeFormatadoLogado.toLowerCase())) return true;
                     
-                    // 2. Se foi direcionado ao "Médico Titular" e eu sou o dono da clínica
-                    if (medicoAlocado === "Médico Titular" && isContaTitular) return true;
+                    // 2. Se foi direcionado pelo meu CRM Pessoal
+                    if (crmPessoalLogado && medicoAlocadoLower.includes(`crm: ${crmPessoalLogado}`)) return true;
+
+                    // 3. Se foi direcionado ao "Médico Titular" e eu sou o dono da clínica
+                    if (medicoAlocadoLower.startsWith("médico titular") && isContaTitular) return true;
                     
-                    // 3. Perfis administrativos ou de leitura visualizam toda a fila da clínica
+                    // 4. Perfis administrativos ou de leitura visualizam toda a fila da clínica
                     if (nivelAcesso === 'Administrativo' || nivelAcesso === 'Leitura') return true;
 
-                    // 4. Se tem o nome de outro médico, ESCONDE!
+                    // 5. Se tem o nome de outro médico, ESCONDE!
                     return false;
                 }
                 
