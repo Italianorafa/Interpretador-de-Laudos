@@ -1,8 +1,8 @@
-// --- CHAVES DAS APIS ---
-const GEMINI_API_KEY = 'AQ.Ab8RN6I_ayhj3dZiRKJOetr1_bgvPgfuPagkz6--JrISuTDQnQ'; 
-const GROQ_API_KEY = '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';
-const SUPABASE_URL = 'https://kxdpgmpgmnogmtqvsask.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_IPgFjiWNCGpdFjVIdaX_Rg_PHNHM6R9';
+// --- CHAVES DAS APIS (Suporta window.ENV / localStorage com fallback padrão) ---
+const GEMINI_API_KEY = (window.ENV && window.ENV.GEMINI_API_KEY) || localStorage.getItem('CDSS_GEMINI_API_KEY') || 'AQ.Ab8RN6I_ayhj3dZiRKJOetr1_bgvPgfuPagkz6--JrISuTDQnQ'; 
+const GROQ_API_KEY = (window.ENV && window.ENV.GROQ_API_KEY) || localStorage.getItem('CDSS_GROQ_API_KEY') || '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';
+const SUPABASE_URL = (window.ENV && window.ENV.SUPABASE_URL) || 'https://kxdpgmpgmnogmtqvsask.supabase.co';
+const SUPABASE_KEY = (window.ENV && window.ENV.SUPABASE_KEY) || 'sb_publishable_IPgFjiWNCGpdFjVIdaX_Rg_PHNHM6R9';
 
 window.clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 

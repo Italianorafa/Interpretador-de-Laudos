@@ -227,8 +227,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let respostaDaIA = "";
                 let sucesso = false;
             
-                // Tentativa 1: GEMINI
+                // Tentativa 1: GEMINI (apenas se a chave tiver o formato válido 'AIza...')
                 try {
+                    if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY || !GEMINI_API_KEY.startsWith('AIza')) {
+                        throw new Error("Chave Gemini ausente ou em formato inválido.");
+                    }
                     const responseGemini = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -239,7 +242,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     respostaDaIA = dataGemini.candidates[0].content.parts[0].text;
                     sucesso = true;
                 } catch (e) {
-                    console.warn(`Gemini falhou. Iniciando fallback para Groq...`);
+                    console.warn(`Gemini indisponível (${e.message || 'erro na requisição'}). Iniciando fallback para Groq...`);
                     // Tentativa 2: GROQ
                     if (typeof GROQ_API_KEY !== 'undefined' && GROQ_API_KEY) {
                         const responseGroq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
