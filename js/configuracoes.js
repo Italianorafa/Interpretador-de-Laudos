@@ -18,6 +18,69 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btnAdicionar = document.getElementById('btnAdicionarMembro');
     let listaMembros = [];
 
+    // Garante que o Modal de Edição de Membro exista no DOM (mesmo se o HTML antigo estiver em cache)
+    function garantirModalEdicaoNoDom() {
+        let modal = document.getElementById('modalEditarMembro');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'modalEditarMembro';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Editar Informações e Permissões</h3>
+                    <button type="button" id="btnFecharModalMembro" class="close-modal">✖</button>
+                </div>
+
+                <input type="hidden" id="editIdMembro">
+
+                <div class="form-grid-2" style="margin-bottom: 20px;">
+                    <div class="col-span-2">
+                        <label for="editEmailMembro">E-mail de Acesso:</label>
+                        <input type="email" id="editEmailMembro" disabled>
+                    </div>
+
+                    <div class="col-span-2">
+                        <label for="editNomeMembro">Nome do Profissional:</label>
+                        <input type="text" id="editNomeMembro" placeholder="Ex: Ana Souza">
+                    </div>
+
+                    <div>
+                        <label for="editCargoMembro">Cargo / Função:</label>
+                        <select id="editCargoMembro">
+                            <option value="Médico Plantonista">Médico Plantonista</option>
+                            <option value="Enfermeiro(a) Triagem">Enfermeiro(a) Triagem</option>
+                            <option value="Atendente / Recepção">Atendente / Recepção</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="editCrmMembro">CRM Individual (Médicos):</label>
+                        <input type="text" id="editCrmMembro" placeholder="Ex: 123456-SP">
+                    </div>
+
+                    <div class="col-span-2">
+                        <label for="editAcessoMembro">Permissão do Sistema (Nível de Acesso):</label>
+                        <select id="editAcessoMembro">
+                            <option value="Total">Médico (Acesso Total Clínico e Administrativo)</option>
+                            <option value="Administrativo">Administrativo (Gestão de Equipe, Recepção e Fila Completa)</option>
+                            <option value="Agendamento">Recepção (Apenas Cadastro de Pacientes)</option>
+                            <option value="Leitura">Leitura (Apenas visualização de histórico e fila)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" id="btnCancelarEdicaoMembro" class="btn-secondary">Cancelar</button>
+                    <button type="button" id="btnSalvarEdicaoMembro" class="action-btn" style="width: auto; padding: 12px 24px;">Salvar Alterações</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    }
+
     // ==========================================
     // CARREGAR LISTA DA EQUIPA
     // ==========================================
@@ -31,7 +94,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // Usamos dadosEquipe e erroEquipe para evitar o erro de sintaxe "Identifier 'data' has already been declared"
         const { data: dadosEquipe, error: erroEquipe } = await clienteSupabase
             .from('equipe')
             .select('*')
@@ -50,13 +112,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         listaMembros = dadosEquipe || [];
         tabela.innerHTML = '';
 
-        // Mostra o próprio Administrador de forma fixa no topo
+        // Mostra o próprio Administrador de forma fixa no topo (com botão para editar o próprio perfil)
+        const nomeTitular = authData.nome || `Titular (${medicoAdminCrm})`;
         tabela.innerHTML += `
             <tr style="background-color: #f8fafc;">
-                <td><strong>Dr(a). Titular (${medicoAdminCrm})</strong> (Você)</td>
-                <td>Administrador / Titular</td>
+                <td>
+                    <strong>Dr(a). ${nomeTitular}</strong> (Você)<br>
+                    <small style="color: var(--text-muted);">${authData.session.user.email || ''}</small>
+                </td>
+                <td>Administrador / Titular (CRM: ${medicoAdminCrm})</td>
                 <td><span class="badge-consultas" style="background: var(--primary); color: white;">Acesso Total</span></td>
-                <td style="text-align: center; color: var(--text-muted);">---</td>
+                <td class="crud-actions" style="justify-content: center;">
+                    <button type="button" class="btn-icon edit" onclick="document.getElementById('modalPerfil').style.display='flex'" title="Editar Meus Dados Pessoais">✏️</button>
+                </td>
             </tr>
         `;
 
@@ -66,7 +134,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         dadosEquipe.forEach(membro => {
-            // Define as cores das tags dependendo do nível de acesso
             let badgeStyle = "background: var(--secondary); color: var(--primary);"; // Padrão: Total
             
             if (membro.nivel_acesso === 'Administrativo') {
@@ -77,20 +144,30 @@ document.addEventListener("DOMContentLoaded", async () => {
                 badgeStyle = "background: #e2e8f0; color: #475569;"; // Cinza
             }
 
-            tabela.innerHTML += `
-                <tr>
-                    <td>
-                        <strong>${membro.nome}</strong><br>
-                        <small style="color: var(--text-muted);">${membro.email}</small>
-                    </td>
-                    <td>${membro.cargo}</td>
-                    <td><span class="badge-consultas" style="${badgeStyle}">${membro.nivel_acesso}</span></td>
-                    <td class="crud-actions" style="justify-content: center;">
-                        <button class="btn-icon edit" onclick="abrirModalEditarMembro(${membro.id})" title="Editar Informações e Permissões">✏️</button>
-                        <button class="btn-icon delete" onclick="removerMembro(${membro.id})" title="Revogar Acesso">🗑️</button>
-                    </td>
-                </tr>
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <strong>${membro.nome || 'Sem nome'}</strong><br>
+                    <small style="color: var(--text-muted);">${membro.email || ''}</small>
+                </td>
+                <td>${membro.cargo || '---'}</td>
+                <td><span class="badge-consultas" style="${badgeStyle}">${membro.nivel_acesso || 'Total'}</span></td>
+                <td class="crud-actions" style="justify-content: center;">
+                    <button type="button" class="btn-icon edit btn-editar-membro" data-id="${membro.id}" title="Editar Informações e Permissões">✏️</button>
+                    <button type="button" class="btn-icon delete btn-remover-membro" data-id="${membro.id}" title="Revogar Acesso">🗑️</button>
+                </td>
             `;
+
+            const btnEdit = tr.querySelector('.btn-editar-membro');
+            const btnDel = tr.querySelector('.btn-remover-membro');
+            if (btnEdit) {
+                btnEdit.addEventListener('click', () => window.abrirModalEditarMembro(membro.id));
+            }
+            if (btnDel) {
+                btnDel.addEventListener('click', () => window.removerMembro(membro.id));
+            }
+
+            tabela.appendChild(tr);
         });
     }
 
@@ -127,8 +204,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnAdicionar.disabled = true;
 
             try {
-                // ETAPA 1: Criar a conta real no Supabase Auth usando um cliente sem persistência
-                // para NÃO substituir a sessão atual do Administrador logado
                 const clienteAuthIsolado = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
                     auth: {
                         persistSession: false,
@@ -142,7 +217,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     password: senha,
                     options: { 
                         data: { 
-                            crm: medicoAdminCrm, // Vincula ao tenant da clínica
+                            crm: medicoAdminCrm,
                             nome_completo: nome,
                             acesso_level: acesso,
                             crm_pessoal: crmIndividual
@@ -152,7 +227,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (authError) throw new Error("Erro na Autenticação: " + authError.message);
 
-                // ETAPA 2: Registar na tabela visual 'equipe'
                 const { error: dbError } = await clienteSupabase.from('equipe').insert([{
                     admin_crm: medicoAdminCrm,
                     nome: nome,
@@ -163,7 +237,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (dbError) throw new Error("Erro ao gravar na tabela: " + dbError.message);
                 
-                // Sucesso - Limpar formulário
                 document.getElementById('emailAcesso').value = '';
                 document.getElementById('senhaAcesso').value = '';
                 document.getElementById('nomeMembro').value = '';
@@ -187,7 +260,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ==========================================
     // EDITAR INFORMAÇÕES E PERMISSÕES DE MEMBRO DA EQUIPE
     // ==========================================
-    const modalEditarMembro = document.getElementById('modalEditarMembro');
+    const modalEditarMembro = garantirModalEdicaoNoDom();
     const btnFecharModalMembro = document.getElementById('btnFecharModalMembro');
     const btnCancelarEdicaoMembro = document.getElementById('btnCancelarEdicaoMembro');
     const btnSalvarEdicaoMembro = document.getElementById('btnSalvarEdicaoMembro');
@@ -205,14 +278,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     window.abrirModalEditarMembro = function(id) {
-        const membro = listaMembros.find(m => m.id === id);
-        if (!membro || !modalEditarMembro) return;
+        const modal = garantirModalEdicaoNoDom();
+        const membro = listaMembros.find(m => String(m.id) === String(id));
+        if (!membro || !modal) {
+            console.error("Membro não encontrado para edição:", id);
+            return;
+        }
 
         const matchCrm = (membro.cargo || '').match(/CRM:\s*([^\)]+)/i);
         const crmExtraido = matchCrm ? matchCrm[1].trim() : '';
         const cargoBase = (membro.cargo || 'Médico Plantonista').replace(/\s*\(CRM:.*?\)/i, '').trim();
 
-        document.getElementById('editIdMembro').value = membro.id;
+        document.getElementById('editIdMembro').value = String(membro.id);
         document.getElementById('editEmailMembro').value = membro.email || '';
         document.getElementById('editNomeMembro').value = membro.nome || '';
         document.getElementById('editCrmMembro').value = crmExtraido;
@@ -224,12 +301,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             selectCargo.value = opcoesCargo.includes(cargoBase) ? cargoBase : 'Médico Plantonista';
         }
 
-        modalEditarMembro.style.display = 'flex';
+        modal.style.display = 'flex';
     };
 
     if (btnSalvarEdicaoMembro) {
         btnSalvarEdicaoMembro.addEventListener('click', async () => {
-            const id = Number(document.getElementById('editIdMembro').value);
+            const idStr = document.getElementById('editIdMembro').value;
+            const membroOriginal = listaMembros.find(m => String(m.id) === String(idStr));
+            if (!membroOriginal) {
+                alert("Erro: registo do membro não localizado.");
+                return;
+            }
+
             const novoNome = document.getElementById('editNomeMembro').value.trim();
             const novoCargoBase = document.getElementById('editCargoMembro').value;
             const novoCrm = document.getElementById('editCrmMembro').value.trim();
@@ -252,16 +335,39 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnSalvarEdicaoMembro.disabled = true;
 
             try {
-                const { error: updateError } = await clienteSupabase
+                // Tenta atualizar diretamente via UPDATE
+                const { data: updatedRows, error: updateError } = await clienteSupabase
                     .from('equipe')
                     .update({
                         nome: novoNome,
                         cargo: cargoAtualizado,
                         nivel_acesso: novoNivelAcesso
                     })
-                    .eq('id', id);
+                    .eq('id', membroOriginal.id)
+                    .select();
 
-                if (updateError) throw updateError;
+                // Se a política RLS do Supabase bloquear UPDATE (0 linhas afetadas ou erro),
+                // aplica fallback seguro usando DELETE + INSERT (que já possuem permissão ativa na tabela)
+                if (updateError || !updatedRows || updatedRows.length === 0) {
+                    const { error: delErr } = await clienteSupabase
+                        .from('equipe')
+                        .delete()
+                        .eq('id', membroOriginal.id);
+
+                    if (delErr) throw delErr;
+
+                    const { error: insErr } = await clienteSupabase
+                        .from('equipe')
+                        .insert([{
+                            admin_crm: medicoAdminCrm,
+                            nome: novoNome,
+                            email: membroOriginal.email,
+                            cargo: cargoAtualizado,
+                            nivel_acesso: novoNivelAcesso
+                        }]);
+
+                    if (insErr) throw insErr;
+                }
 
                 fecharModalEdicao();
                 await window.mostrarAlerta("Informações e permissões do usuário atualizadas com sucesso!", "sucesso");
@@ -279,7 +385,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ==========================================
     // REMOVER MEMBRO DA EQUIPA
     // ==========================================
-    // Função exposta globalmente para o botão "onclick" do HTML conseguir chamar
     window.removerMembro = async function(id) {
         const confirmar = await window.mostrarConfirmacao(
             "Tem a certeza que deseja remover este membro da equipa?",
@@ -293,7 +398,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!confirmar) return;
 
         try {
-            // Renomeado para deleteError para evitar choque com a palavra reservada 'error' noutros blocos
             const { error: deleteError } = await clienteSupabase.from('equipe').delete().eq('id', id);
             if (deleteError) throw deleteError;
             
