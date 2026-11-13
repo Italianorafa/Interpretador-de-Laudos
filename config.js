@@ -56,7 +56,7 @@ window.verificarAutenticacao = async function() {
         });
         const nav = document.querySelector('.header-nav');
         if (nav && !document.querySelector('.header-nav a[href*="recepcao.html"]')) {
-            nav.innerHTML = `<a href="recepcao.html" class="nav-item" style="text-decoration: none;">Painel da Recepção</a>` + nav.innerHTML;
+            nav.innerHTML = `<a href="recepcao.html" class="nav-item">Painel da Recepção</a>` + nav.innerHTML;
         }
     } 
     // Regras de Apenas Visualização (Leitura)
@@ -81,6 +81,16 @@ window.verificarAutenticacao = async function() {
             document.querySelectorAll('.header-nav a[href*="recepcao.html"]').forEach(el => el.style.display = 'none');
         }
     }
+
+    // Marca automaticamente a aba ativa na barra de navegação
+    document.querySelectorAll('.header-nav .nav-item').forEach(link => {
+        const href = (link.getAttribute('href') || '').toLowerCase();
+        if (href && paginaAtual.includes(href)) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
 
     // Configura o cabeçalho visualmente
     const crmElement = document.getElementById('medicoLogadoCrm');

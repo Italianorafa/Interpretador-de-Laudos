@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authData = await verificarAutenticacao();
     if (!authData) return;
     const medicoAdminCrm = authData.crm;
+    const nivelAcesso = authData.nivelAcesso;
     
     // 2. Descobrir a identidade do utilizador logado
     const metadata = authData.session.user.user_metadata;
@@ -13,7 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     window.carregarFila = async function() {
         const grid = document.getElementById('gridFilaEspera');
-        grid.innerHTML = '<p style="grid-column: span 3; text-align: center; color: var(--text-muted);">A carregar pacientes na fila...</p>';
+        grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 20px;">A carregar pacientes na fila...</p>';
 
         try {
             // Busca TODOS os pacientes da clínica que estão aguardando
@@ -45,7 +46,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // 2. Se foi direcionado ao "Médico Titular" e eu sou o dono da clínica
                     if (medicoAlocado === "Médico Titular" && isContaTitular) return true;
                     
-                    // 3. Se tem o nome de outro médico, ESCONDE!
+                    // 3. Perfis administrativos ou de leitura visualizam toda a fila da clínica
+                    if (nivelAcesso === 'Administrativo' || nivelAcesso === 'Leitura') return true;
+
+                    // 4. Se tem o nome de outro médico, ESCONDE!
                     return false;
                 }
                 
@@ -58,9 +62,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             // ==========================================
             if (!pacientesParaMim || pacientesParaMim.length === 0) {
                 grid.innerHTML = `
-                    <div style="grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 12px; border: 1px dashed var(--border);">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; background: var(--surface); border-radius: var(--radius); border: 1px dashed var(--border);">
                         <span style="font-size: 40px; display: block; margin-bottom: 10px;">☕</span>
-                        <h3 style="color: var(--text);">Fila Vazia</h3>
+                        <h3 style="color: var(--text-main);">Fila Vazia</h3>
                         <p style="color: var(--text-muted);">Nenhum paciente a aguardar atendimento direcionado a si no momento.</p>
                     </div>`;
                 return;
@@ -77,31 +81,35 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 const card = document.createElement('div');
-                card.style.cssText = "background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;";
+                card.className = 'queue-card';
                 
+                const botaoAtendimentoHtml = (nivelAcesso === 'Leitura' || nivelAcesso === 'Administrativo')
+                    ? ''
+                    : `<button class="action-btn" onclick="iniciarAtendimento(${paciente.id})" style="width: 100%; text-align: center; padding: 12px;">
+                        👨‍⚕️ Iniciar Atendimento
+                       </button>`;
+
                 card.innerHTML = `
                     <div>
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                            <h3 style="margin: 0; color: var(--primary); font-size: 18px;">${paciente.nome_paciente}</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px;">
+                            <h3 style="margin: 0; color: var(--primary); font-size: 17px;">${paciente.nome_paciente}</h3>
                             <span class="badge-consultas" style="background: #fef2f2; color: #991b1b; white-space: nowrap;">Chegou às ${horaFormatada}</span>
                         </div>
-                        <div style="font-size: 14px; color: var(--text); margin-bottom: 10px;">
+                        <div style="font-size: 13.5px; color: var(--text-main); margin-bottom: 10px;">
                             <strong>Direcionado a:</strong> <span style="color: var(--primary); font-weight: 600;">${medicoAlocado}</span>
                         </div>
-                        <div style="font-size: 13px; color: var(--text-muted); background: #f8fafc; padding: 10px; border-radius: 6px; max-height: 80px; overflow-y: auto; margin-bottom: 20px;">
+                        <div style="font-size: 13px; color: var(--text-muted); background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); max-height: 95px; overflow-y: auto; margin-bottom: 16px;">
                             ${paciente.anamnese.replace(/\n/g, '<br>')}
                         </div>
                     </div>
-                    <button class="action-btn" onclick="iniciarAtendimento(${paciente.id})" style="width: 100%; text-align: center; padding: 12px;">
-                        👨‍⚕️ Iniciar Atendimento
-                    </button>
+                    ${botaoAtendimentoHtml}
                 `;
                 grid.appendChild(card);
             });
 
         } catch (error) {
             console.error("Erro ao carregar fila:", error);
-            grid.innerHTML = '<p style="grid-column: span 3; text-align: center; color: red;">Erro ao carregar a fila de espera.</p>';
+            grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--danger);">Erro ao carregar a fila de espera.</p>';
         }
     };
 

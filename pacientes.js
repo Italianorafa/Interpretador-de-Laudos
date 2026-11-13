@@ -147,17 +147,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             anamneseLimpa = anamneseLimpa.replace(/Motivo:\s*/g, '');
             anamneseLimpa = anamneseLimpa.trim();
 
+            const diagnosticoFormatado = consulta.diagnostico_ia
+                ? consulta.diagnostico_ia
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                : 'Nenhum diagnóstico registado.';
+
             const card = document.createElement('div');
             card.className = 'timeline-card';
             card.innerHTML = `
                 <div class="timeline-header">
                     <div class="timeline-date">📅 ${dataFormatada} às ${horaFormatada}</div>
+                    <span class="badge-consultas">${consulta.nome_medico || nomeFormatadoLogado}</span>
                 </div>
                 <div class="timeline-body">
                     <p><strong>Queixa / Anamnese:</strong><br>${anamneseLimpa.replace(/\n/g, '<br>')}</p>
                     <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 15px;">
                         <strong>🧠 Diagnóstico / Conduta IA:</strong><br>
-                        ${consulta.diagnostico_ia ? consulta.diagnostico_ia.replace(/\n/g, '<br>') : 'Nenhum diagnóstico registado.'}
+                        ${diagnosticoFormatado}
                     </div>
                 </div>
             `;
