@@ -114,6 +114,23 @@
                 <h2>Avaliação da IA:</h2>
                 <div id="resultadoTexto"></div>
             </div>
+
+            <!-- Chat Interativo de Segunda Opinião com a IA -->
+            <div id="chatBox" class="hidden">
+                <div class="chat-header">
+                    <h3>💬 Discutir Caso com a IA (Segunda Opinião / Posologia / Interações)</h3>
+                    <span class="badge-consultas">Contexto Clínico Ativo</span>
+                </div>
+                <div id="chatHistory">
+                    <div class="msg msg-ia">
+                        Olá, Dr(a)! Analisei o quadro acima. Tem alguma dúvida específica sobre posologia, diagnósticos diferenciais ou interações medicamentosas deste caso?
+                    </div>
+                </div>
+                <div class="chat-input-wrapper">
+                    <input type="text" id="chatInput" placeholder="Ex: Qual o ajuste de dose se houver insuficiência renal?">
+                    <button id="btnEnviarChat" class="action-btn" type="button">Enviar</button>
+                </div>
+            </div>
         </main>
     </div>
 

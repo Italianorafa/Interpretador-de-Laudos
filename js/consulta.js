@@ -26,6 +26,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const divResultadoTexto = document.getElementById('resultadoTexto');
     const historicoInput = document.getElementById('historicoInput');
     const laudoInput = document.getElementById('laudoInput');
+    const chatBox = document.getElementById('chatBox');
+    const chatHistory = document.getElementById('chatHistory');
+    const chatInput = document.getElementById('chatInput');
+    const btnEnviarChat = document.getElementById('btnEnviarChat');
+
+    // Histórico de mensagens para manter o contexto no chat clínico
+    let historicoConversaIA = [];
 
     // ==========================================
     // 2. CÁLCULO DE IDADE DINÂMICO
@@ -51,6 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ==========================================
     const urlParams = new URLSearchParams(window.location.search);
     const atendimentoId = urlParams.get('atendimento_id');
+    let idAtendimentoAtual = atendimentoId;
 
     if (atendimentoId) {
         try {
@@ -222,6 +230,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    // Função reutilizável para chamar a IA (Gemini com fallback para Groq)
+    async function consultarLLM(mensagens) {
+        // Tentativa 1: GEMINI (se chave começar com 'AIza')
+        try {
+            if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY || !GEMINI_API_KEY.startsWith('AIza')) {
+                throw new Error("Chave Gemini ausente ou em formato inválido.");
+            }
+            const textoUnificado = mensagens.map(m => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n');
+            const responseGemini = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: textoUnificado }] }] })
+            });
+            if (!responseGemini.ok) throw new Error();
+            const dataGemini = await responseGemini.json();
+            return dataGemini.candidates[0].content.parts[0].text;
+        } catch (e) {
+            console.warn(`Gemini indisponível (${e.message || 'erro na requisição'}). Usando Groq...`);
+            if (typeof GROQ_API_KEY !== 'undefined' && GROQ_API_KEY) {
+                const responseGroq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+                    body: JSON.stringify({
+                        model: "openai/gpt-oss-120b",
+                        messages: mensagens,
+                        temperature: 0.3
+                    })
+                });
+                if (responseGroq.ok) {
+                    const dataGroq = await responseGroq.json();
+                    return dataGroq.choices[0].message.content;
+                }
+            }
+        }
+        throw new Error("A IA falhou na análise. Verifique a sua ligação ou chaves de API.");
+    }
+
     // ==========================================
     // 5. ANÁLISE COM IA (GEMINI + GROQ) E SALVAMENTO NO SUPABASE
     // ==========================================
@@ -246,60 +291,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnAnalisar.innerText = "A processar...";
             if (loading) loading.classList.remove('hidden');
             if (resultadoBox) resultadoBox.classList.add('hidden');
+            if (chatBox) chatBox.classList.add('hidden');
 
             try {
-                let respostaDaIA = "";
-                let sucesso = false;
-            
-                // Tentativa 1: GEMINI (apenas se a chave tiver o formato válido 'AIza...')
-                try {
-                    if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY || !GEMINI_API_KEY.startsWith('AIza')) {
-                        throw new Error("Chave Gemini ausente ou em formato inválido.");
-                    }
-                    const responseGemini = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: instrucaoSistema + "\n\n" + conteudoPaciente }] }] })
-                    });
-                    if (!responseGemini.ok) throw new Error();
-                    const dataGemini = await responseGemini.json();
-                    respostaDaIA = dataGemini.candidates[0].content.parts[0].text;
-                    sucesso = true;
-                } catch (e) {
-                    console.warn(`Gemini indisponível (${e.message || 'erro na requisição'}). Iniciando fallback para Groq...`);
-                    // Tentativa 2: GROQ
-                    if (typeof GROQ_API_KEY !== 'undefined' && GROQ_API_KEY) {
-                        const responseGroq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
-                            body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: instrucaoSistema }, { role: "user", content: conteudoPaciente }], temperature: 0.3 })
-                        });
-                        if (responseGroq.ok) {
-                            const dataGroq = await responseGroq.json();
-                            respostaDaIA = dataGroq.choices[0].message.content;
-                            sucesso = true;
-                        }
-                    }
-                }
+                historicoConversaIA = [
+                    { role: "system", content: instrucaoSistema },
+                    { role: "user", content: conteudoPaciente }
+                ];
 
-                if (!sucesso) throw new Error("A IA falhou na análise. Verifique a sua ligação ou chaves de API.");
+                const respostaDaIA = await consultarLLM(historicoConversaIA);
+                historicoConversaIA.push({ role: "assistant", content: respostaDaIA });
 
                 // 1. Formatar e exibir na interface
                 let respostaFormatada = respostaDaIA.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
                 if (divResultadoTexto) divResultadoTexto.innerHTML = respostaFormatada;
                 if (resultadoBox) resultadoBox.classList.remove('hidden');
+                if (chatBox) chatBox.classList.remove('hidden');
 
                 // 2. Sincronizar dados cadastrais do paciente e salvar atendimento no Supabase
                 await sincronizarCadastroPaciente();
 
                 let dbError;
-                if (atendimentoId) {
+                if (idAtendimentoAtual) {
                     const res = await window.clienteSupabase.from('atendimentos').update({ 
                         nome_paciente: nomePaciente, 
                         anamnese: anamneseText, 
                         diagnostico_ia: respostaDaIA,
-                        nome_medico: nomeFormatadoLogado // <-- GRAVA O NOME DO MÉDICO
-                    }).eq('id', atendimentoId);
+                        nome_medico: nomeFormatadoLogado
+                    }).eq('id', idAtendimentoAtual);
                     dbError = res.error;
                 } else {
                     const res = await window.clienteSupabase.from('atendimentos').insert([{ 
@@ -307,9 +326,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                         nome_paciente: nomePaciente, 
                         anamnese: anamneseText, 
                         diagnostico_ia: respostaDaIA,
-                        nome_medico: nomeFormatadoLogado // <-- GRAVA O NOME DO MÉDICO
-                    }]);
+                        nome_medico: nomeFormatadoLogado
+                    }]).select('id').single();
                     dbError = res.error;
+                    if (res.data && res.data.id) idAtendimentoAtual = res.data.id;
                 }
 
                 if (dbError) throw dbError;
@@ -317,12 +337,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // 3. Confirmação estilizada
                 setTimeout(async () => {
                     const irParaPacientes = await window.mostrarConfirmacao(
-                        "Análise salva com sucesso! Deseja ir para a página 'Meus Pacientes' agora?",
+                        "Análise salva com sucesso! Deseja ir para a página 'Meus Pacientes' agora ou continuar a discutir o caso no chat abaixo?",
                         {
                             tipo: 'sucesso',
                             titulo: 'Análise Concluída',
                             textoConfirmar: 'Ir para Meus Pacientes',
-                            textoCancelar: 'Continuar aqui'
+                            textoCancelar: 'Ficar e usar o Chat'
                         }
                     );
                     if (irParaPacientes) {
@@ -336,6 +356,62 @@ document.addEventListener("DOMContentLoaded", async () => {
                 btnAnalisar.disabled = false;
                 btnAnalisar.innerText = "Analisar com IA e Salvar";
                 if (loading) loading.classList.add('hidden');
+            }
+        });
+    }
+
+    // ==========================================
+    // 5.1 CHAT INTERATIVO DE SEGUNDA OPINIÃO COM A IA
+    // ==========================================
+    async function enviarMensagemChat() {
+        if (!chatInput || !chatHistory) return;
+        const pergunta = chatInput.value.trim();
+        if (!pergunta) return;
+
+        // Adiciona a pergunta do médico no chat
+        const divUser = document.createElement('div');
+        divUser.className = 'msg msg-user';
+        divUser.textContent = pergunta;
+        chatHistory.appendChild(divUser);
+        chatInput.value = '';
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        // Bolha temporária de carregamento
+        const divIa = document.createElement('div');
+        divIa.className = 'msg msg-ia';
+        divIa.innerHTML = '<em>⏳ A consultar literatura clínica...</em>';
+        chatHistory.appendChild(divIa);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        if (btnEnviarChat) btnEnviarChat.disabled = true;
+
+        try {
+            historicoConversaIA.push({ role: "user", content: pergunta });
+            const respostaChat = await consultarLLM(historicoConversaIA);
+            historicoConversaIA.push({ role: "assistant", content: respostaChat });
+
+            divIa.innerHTML = respostaChat
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        } catch (err) {
+            console.error(err);
+            divIa.innerHTML = '<span style="color: var(--danger);">Erro ao obter resposta da IA. Tente novamente.</span>';
+        } finally {
+            if (btnEnviarChat) btnEnviarChat.disabled = false;
+            chatInput.focus();
+        }
+    }
+
+    if (btnEnviarChat) {
+        btnEnviarChat.addEventListener('click', enviarMensagemChat);
+    }
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                enviarMensagemChat();
             }
         });
     }
