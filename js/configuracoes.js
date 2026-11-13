@@ -117,8 +117,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnAdicionar.disabled = true;
 
             try {
-                // ETAPA 1: Criar a conta real no Supabase Auth
-                const { error: authError } = await clienteSupabase.auth.signUp({
+                // ETAPA 1: Criar a conta real no Supabase Auth usando um cliente sem persistência
+                // para NÃO substituir a sessão atual do Administrador logado
+                const clienteAuthIsolado = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                    auth: {
+                        persistSession: false,
+                        autoRefreshToken: false,
+                        detectSessionInUrl: false
+                    }
+                });
+
+                const { error: authError } = await clienteAuthIsolado.auth.signUp({
                     email: email,
                     password: senha,
                     options: { 
