@@ -38,21 +38,24 @@ Sistema SaaS de **Suporte à Decisão Clínica (CDSS - Clinical Decision Support
 
 ```text
 Interpretador-de-Laudos/
+├── css/
+│   └── style.css       # Design System Health Tech responsivo (Desktop/Tablet/Mobile)
+├── js/
+│   ├── config.js       # Inicialização do Supabase, guardas de rota RBAC e perfil
+│   ├── login.js        # Lógica de autenticação no Supabase Auth
+│   ├── recepcao.js     # Busca por CPF, upsert de paciente e envio para a fila
+│   ├── fila.js         # Listagem e filtro inteligente de pacientes aguardando
+│   ├── consulta.js     # Extração de PDF (PDF.js), chamada às IAs e salvamento
+│   ├── pacientes.js    # Agrupamento de pacientes e histórico de consultas
+│   └── configuracoes.js# Criação e remoção de membros da clínica
 ├── index.html          # Ponto de entrada (redireciona para login.html)
 ├── login.html          # Tela de login, registo de clínica e contas de teste
-├── login.js            # Lógica de autenticação no Supabase Auth
 ├── recepcao.html       # Tela de admissão e triagem de pacientes
-├── recepcao.js         # Busca por CPF, upsert de paciente e envio para a fila
 ├── fila.html           # Painel de fila de espera médica
-├── fila.js             # Listagem e filtro inteligente de pacientes aguardando
 ├── consulta.html       # Tela de atendimento clínico e upload de laudos
-├── consulta.js         # Extração de PDF (PDF.js), chamada às IAs e salvamento
 ├── pacientes.html      # Prontuário Eletrônico e linha do tempo clínica
-├── pacientes.js        # Agrupamento de pacientes e histórico de consultas
 ├── configuracoes.html  # Gestão de equipe e permissões (RBAC)
-├── configuracoes.js    # Criação e remoção de membros da clínica
-├── config.js           # Inicialização do Supabase, guardas de rota RBAC e perfil
-├── style.css           # Design System Health Tech responsivo (Desktop/Tablet/Mobile)
+├── README.md           # Documentação do projeto
 └── LICENSE             # Licença MIT
 ```
 
