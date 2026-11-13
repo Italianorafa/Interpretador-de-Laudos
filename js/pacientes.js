@@ -16,6 +16,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btnVoltar = document.getElementById('btnVoltarPacientes');
     const timeline = document.getElementById('timelineProntuario');
     const tituloNome = document.getElementById('tituloNomePaciente');
+    const inputBuscaPaciente = document.getElementById('inputBuscaPaciente');
+    const contadorPacientes = document.getElementById('contadorPacientes');
 
     if (btnVoltar) {
         btnVoltar.addEventListener('click', () => {
@@ -35,9 +37,64 @@ document.addEventListener("DOMContentLoaded", async () => {
         return idade + " anos";
     }
 
+    function renderizarTabelaPacientes(termoBusca = '') {
+        if (!tabelaCrud) return;
+        const todos = Object.values(window.dadosPacientes || {});
+        const termo = termoBusca.trim().toLowerCase();
+        const termoApenasDigitos = termo.replace(/\D/g, '');
+
+        const filtrados = todos.filter(p => {
+            if (!termo) return true;
+            const nomeMatch = (p.nome || '').toLowerCase().includes(termo);
+            const cpfLimpo = (p.cpf || '').replace(/\D/g, '');
+            const cpfMatch = (p.cpf || '').toLowerCase().includes(termo) ||
+                (termoApenasDigitos && cpfLimpo.includes(termoApenasDigitos));
+            return nomeMatch || cpfMatch;
+        });
+
+        if (contadorPacientes) {
+            contadorPacientes.innerText = `${filtrados.length} ${filtrados.length === 1 ? 'paciente' : 'pacientes'}`;
+        }
+
+        if (filtrados.length === 0) {
+            tabelaCrud.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhum paciente encontrado para a pesquisa informada.</td></tr>';
+            return;
+        }
+
+        tabelaCrud.innerHTML = '';
+        filtrados.forEach(paciente => {
+            const totalConsultas = paciente.historicoConsultas ? paciente.historicoConsultas.length : 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${paciente.nome}</strong></td>
+                <td>${paciente.idade}</td>
+                <td>${paciente.cpf}</td>
+                <td style="text-align: center;">
+                    <span class="badge-consultas">${totalConsultas} ${totalConsultas === 1 ? 'consulta' : 'consultas'}</span>
+                </td>
+                <td style="text-align: center;">
+                    <button class="btn-secondary btn-ver-historico" type="button" style="color: var(--primary); border-color: var(--primary);">
+                        📖 Ver Histórico
+                    </button>
+                </td>
+            `;
+            const btnHistorico = tr.querySelector('.btn-ver-historico');
+            if (btnHistorico) {
+                btnHistorico.addEventListener('click', () => window.abrirHistorico(paciente.nome));
+            }
+            tabelaCrud.appendChild(tr);
+        });
+    }
+
+    if (inputBuscaPaciente) {
+        inputBuscaPaciente.addEventListener('input', (e) => {
+            renderizarTabelaPacientes(e.target.value);
+        });
+    }
+
     async function carregarPacientes() {
         try {
-            if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center;">A carregar pacientes...</td></tr>';
+            if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="5" style="text-align:center;">A carregar pacientes...</td></tr>';
 
             // 1. Busca os atendimentos concluídos da clínica
             const { data: todasConsultas, error: erroConsultas } = await window.clienteSupabase
@@ -58,7 +115,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             if (consultas.length === 0) {
-                if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum histórico de pacientes cadastrado para si.</td></tr>';
+                if (contadorPacientes) contadorPacientes.innerText = '0 pacientes';
+                if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhum histórico de pacientes cadastrado para si.</td></tr>';
                 return;
             }
 
@@ -109,32 +167,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             window.dadosPacientes = pacientesAgrupados;
 
-            // 4. Desenha a tabela com os dados corretos
-            if (tabelaCrud) {
-                tabelaCrud.innerHTML = '';
-                Object.values(pacientesAgrupados).forEach(paciente => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><strong>${paciente.nome}</strong></td>
-                        <td>${paciente.idade}</td>
-                        <td>${paciente.cpf}</td>
-                        <td style="text-align: center;">
-                            <button class="btn-secondary btn-ver-historico" type="button" style="color: var(--primary); border-color: var(--primary);">
-                                📖 Ver Histórico
-                            </button>
-                        </td>
-                    `;
-                    const btnHistorico = tr.querySelector('.btn-ver-historico');
-                    if (btnHistorico) {
-                        btnHistorico.addEventListener('click', () => window.abrirHistorico(paciente.nome));
-                    }
-                    tabelaCrud.appendChild(tr);
-                });
-            }
+            // 4. Desenha a tabela com os dados corretos (aplicando eventual filtro ativo)
+            renderizarTabelaPacientes(inputBuscaPaciente ? inputBuscaPaciente.value : '');
 
         } catch (error) {
             console.error("Erro ao carregar pacientes:", error);
-            if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Erro ao carregar lista.</td></tr>';
+            if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Erro ao carregar lista.</td></tr>';
         }
     }
 

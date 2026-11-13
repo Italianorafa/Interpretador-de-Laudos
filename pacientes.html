@@ -35,9 +35,17 @@
             <!-- LISTA -->
             <div id="listaPacientesContainer">
                 <div class="section-header">
-                    <h2>Meus Pacientes</h2>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <h2>Meus Pacientes</h2>
+                        <span id="contadorPacientes" class="badge-consultas">0 pacientes</span>
+                    </div>
                     <a href="consulta.html" class="btn-success" style="text-decoration: none;">+ Nova Consulta</a>
                 </div>
+
+                <div class="search-wrapper" style="margin-bottom: 18px;">
+                    <input type="text" id="inputBuscaPaciente" placeholder="🔍 Pesquisar paciente por nome ou CPF...">
+                </div>
+
                 <div class="table-container">
                     <table class="saas-table">
                         <thead>
@@ -45,6 +53,7 @@
                                 <th>Nome do Paciente</th>
                                 <th>Idade</th>
                                 <th>CPF / Documento</th>
+                                <th style="text-align: center;">Atendimentos</th>
                                 <th style="text-align: center;">Ações</th>
                             </tr>
                         </thead>
