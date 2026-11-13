@@ -313,12 +313,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (dbError) throw dbError;
 
-                // 3. Confirmação
-                setTimeout(() => {
-                    if (confirm("✅ Análise salva! Deseja ir para a página 'Meus Pacientes' agora?")) {
+                // 3. Confirmação estilizada
+                setTimeout(async () => {
+                    const irParaPacientes = await window.mostrarConfirmacao(
+                        "Análise salva com sucesso! Deseja ir para a página 'Meus Pacientes' agora?",
+                        {
+                            tipo: 'sucesso',
+                            titulo: 'Análise Concluída',
+                            textoConfirmar: 'Ir para Meus Pacientes',
+                            textoCancelar: 'Continuar aqui'
+                        }
+                    );
+                    if (irParaPacientes) {
                         window.location.href = 'pacientes.html';
                     }
-                }, 500);
+                }, 400);
 
             } catch (error) {
                 alert(error.message);
@@ -368,7 +377,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 if (dbError) throw dbError;
-                alert('Consulta salva com sucesso!');
+                await window.mostrarAlerta('Consulta salva com sucesso!', 'sucesso');
                 window.location.href = 'pacientes.html';
             } catch (error) {
                 alert("Erro ao salvar: " + error.message);

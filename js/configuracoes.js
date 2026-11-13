@@ -181,7 +181,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ==========================================
     // Função exposta globalmente para o botão "onclick" do HTML conseguir chamar
     window.removerMembro = async function(id) {
-        if (!confirm("Tem a certeza que deseja remover este membro da equipa visualmente?")) return;
+        const confirmar = await window.mostrarConfirmacao(
+            "Tem a certeza que deseja remover este membro da equipa?",
+            {
+                tipo: 'erro',
+                titulo: 'Revogar Acesso',
+                textoConfirmar: 'Sim, Remover',
+                textoCancelar: 'Cancelar'
+            }
+        );
+        if (!confirmar) return;
 
         try {
             // Renomeado para deleteError para evitar choque com a palavra reservada 'error' noutros blocos

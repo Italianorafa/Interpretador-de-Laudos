@@ -7,6 +7,128 @@ const SUPABASE_KEY = (window.ENV && window.ENV.SUPABASE_KEY) || 'sb_publishable_
 window.clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==========================================
+// 0. SISTEMA DE ALERTAS E CONFIRMAÇÕES PERSONALIZADOS (CDSS UI)
+// ==========================================
+window.mostrarAlerta = function(mensagem, tipoForcado = null) {
+    return new Promise((resolve) => {
+        const msgStr = String(mensagem || '').replace(/^✅\s*/, '');
+        const msgLower = msgStr.toLowerCase();
+
+        let tipo = tipoForcado;
+        if (!tipo) {
+            if (msgLower.includes('erro') || msgLower.includes('falha') || msgLower.includes('inválid') || msgLower.includes('protegido')) {
+                tipo = 'erro';
+            } else if (msgLower.includes('sucesso') || msgLower.includes('encontrado!') || msgLower.includes('salva!')) {
+                tipo = 'sucesso';
+            } else if (msgLower.includes('obrigatório') || msgLower.includes('preencha') || msgLower.includes('por favor') || msgLower.includes('segurança') || msgLower.includes('não encontrado') || msgLower.includes('não tem cadastro')) {
+                tipo = 'aviso';
+            } else {
+                tipo = 'info';
+            }
+        }
+
+        const configTipo = {
+            sucesso: { icone: '✓', titulo: ' Tudo Certo!' },
+            erro:    { icone: '✕', titulo: 'Ocorreu um Erro' },
+            aviso:   { icone: '!', titulo: 'Atenção' },
+            info:    { icone: 'ℹ', titulo: 'Informação' }
+        }[tipo] || { icone: 'ℹ', titulo: 'Aviso do Sistema' };
+
+        const overlay = document.createElement('div');
+        overlay.className = 'cdss-alert-overlay';
+        overlay.innerHTML = `
+            <div class="cdss-alert-box" role="alertdialog" aria-modal="true">
+                <div class="cdss-alert-icon ${tipo}">${configTipo.icone}</div>
+                <h3 class="cdss-alert-title">${configTipo.titulo}</h3>
+                <div class="cdss-alert-message">${msgStr.replace(/\n/g, '<br>')}</div>
+                <div class="cdss-alert-actions">
+                    <button type="button" class="action-btn cdss-alert-ok">Entendido</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const btnOk = overlay.querySelector('.cdss-alert-ok');
+        if (btnOk) btnOk.focus();
+
+        function fechar() {
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+            resolve();
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                fechar();
+            }
+        }
+
+        btnOk.addEventListener('click', fechar);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) fechar();
+        });
+        document.addEventListener('keydown', onKey);
+    });
+};
+
+window.mostrarConfirmacao = function(mensagem, opcoes = {}) {
+    return new Promise((resolve) => {
+        const msgStr = String(mensagem || '').replace(/^✅\s*/, '');
+        const tipo = opcoes.tipo || (msgStr.toLowerCase().includes('remover') ? 'erro' : 'sucesso');
+        const titulo = opcoes.titulo || (tipo === 'erro' ? 'Confirmar Exclusão' : 'Confirmação');
+        const textoConfirmar = opcoes.textoConfirmar || 'Confirmar';
+        const textoCancelar = opcoes.textoCancelar || 'Agora não';
+        const icone = tipo === 'erro' ? '🗑️' : '✓';
+        const btnClasseExtra = tipo === 'erro' ? 'btn-danger' : '';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'cdss-alert-overlay';
+        overlay.innerHTML = `
+            <div class="cdss-alert-box" role="dialog" aria-modal="true">
+                <div class="cdss-alert-icon ${tipo}">${icone}</div>
+                <h3 class="cdss-alert-title">${titulo}</h3>
+                <div class="cdss-alert-message">${msgStr.replace(/\n/g, '<br>')}</div>
+                <div class="cdss-alert-actions">
+                    <button type="button" class="btn-secondary cdss-confirm-cancel">${textoCancelar}</button>
+                    <button type="button" class="action-btn ${btnClasseExtra} cdss-confirm-ok">${textoConfirmar}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const btnOk = overlay.querySelector('.cdss-confirm-ok');
+        const btnCancel = overlay.querySelector('.cdss-confirm-cancel');
+        if (btnOk) btnOk.focus();
+
+        function finalizar(resultado) {
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+            resolve(resultado);
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                finalizar(false);
+            }
+        }
+
+        btnOk.addEventListener('click', () => finalizar(true));
+        btnCancel.addEventListener('click', () => finalizar(false));
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) finalizar(false);
+        });
+        document.addEventListener('keydown', onKey);
+    });
+};
+
+// Substitui o alert nativo do navegador pelo modal estilizado do CDSS
+window.alert = function(mensagem) {
+    return window.mostrarAlerta(mensagem);
+};
+
+// ==========================================
 // 1. LOGOUT SEGURO E GLOBAL
 // ==========================================
 // Criamos uma função global que obriga o navegador a esperar a sessão ser apagada ANTES de mudar de ecrã
@@ -197,8 +319,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                alert("Dados pessoais atualizados com sucesso!");
                 if (modalPerfil) modalPerfil.style.display = 'none';
+                await window.mostrarAlerta("Dados pessoais atualizados com sucesso!", "sucesso");
                 window.location.reload();
 
             } catch (error) {

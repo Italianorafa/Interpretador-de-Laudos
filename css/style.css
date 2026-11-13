@@ -816,6 +816,108 @@ textarea.small-text {
 }
 
 /* =========================================
+   SISTEMA DE ALERTAS E CONFIRMAÇÕES (CDSS UI)
+   ========================================= */
+.cdss-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.cdss-alert-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 26px 24px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.18);
+    text-align: center;
+    animation: slideUp 0.25s ease-out;
+}
+
+.cdss-alert-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin: 0 auto 16px auto;
+}
+
+.cdss-alert-icon.sucesso {
+    background: #dcfce7;
+    color: #15803d;
+    border: 2px solid #bbf7d0;
+}
+
+.cdss-alert-icon.erro {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 2px solid #fecaca;
+}
+
+.cdss-alert-icon.aviso {
+    background: #fef3c7;
+    color: #b45309;
+    border: 2px solid #fde68a;
+}
+
+.cdss-alert-icon.info {
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 2px solid #bfdbfe;
+}
+
+.cdss-alert-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 8px;
+}
+
+.cdss-alert-message {
+    font-size: 14.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 24px;
+    word-break: break-word;
+}
+
+.cdss-alert-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.cdss-alert-actions button {
+    flex: 1;
+    padding: 12px 18px;
+    font-size: 14.5px;
+}
+
+.action-btn.btn-danger {
+    background-color: var(--danger);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+.action-btn.btn-danger:hover {
+    background-color: #dc2626;
+    box-shadow: 0 6px 15px rgba(239, 68, 68, 0.35);
+}
+
+/* =========================================
    LOADING, UTILITÁRIOS E ANIMAÇÕES
    ========================================= */
 .hidden {
