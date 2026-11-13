@@ -1,10 +1,12 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    // 1. Obtém Identidade do Médico
+    // 1. Obtém Identidade do Médico / Utilizador
     const authData = await verificarAutenticacao();
     if (!authData) return;
     const medicoCrm = authData.crm;
+    const nivelAcesso = authData.nivelAcesso;
     
     const metadata = authData.session.user.user_metadata;
+    const isContaTitular = !metadata.acesso_level;
     const nomeUsuarioLogado = metadata.nome_completo;
     const nomeFormatadoLogado = nomeUsuarioLogado ? `Dr(a). ${nomeUsuarioLogado}` : "Médico Titular";
 
@@ -37,18 +39,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center;">A carregar pacientes...</td></tr>';
 
-            // 1. Busca os atendimentos concluídos deste médico
-            const { data: consultas, error: erroConsultas } = await window.clienteSupabase
+            // 1. Busca os atendimentos concluídos da clínica
+            const { data: todasConsultas, error: erroConsultas } = await window.clienteSupabase
                 .from('atendimentos')
                 .select('*')
                 .eq('medico_crm', medicoCrm)
-                .eq('nome_medico', nomeFormatadoLogado)
                 .neq('diagnostico_ia', 'Aguardando avaliação médica.')
                 .order('created_at', { ascending: false });
 
             if (erroConsultas) throw erroConsultas;
 
-            if (!consultas || consultas.length === 0) {
+            // Filtra os atendimentos conforme o perfil:
+            // - Conta Titular ou perfil Leitura visualiza todo o histórico da clínica
+            // - Médico da equipe visualiza os seus próprios atendimentos
+            const consultas = (todasConsultas || []).filter(c => {
+                if (isContaTitular || nivelAcesso === 'Leitura') return true;
+                return c.nome_medico === nomeFormatadoLogado || !c.nome_medico;
+            });
+
+            if (consultas.length === 0) {
                 if (tabelaCrud) tabelaCrud.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum histórico de pacientes cadastrado para si.</td></tr>';
                 return;
             }
@@ -110,11 +119,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <td>${paciente.idade}</td>
                         <td>${paciente.cpf}</td>
                         <td style="text-align: center;">
-                            <button class="btn-secondary" onclick="abrirHistorico('${paciente.nome}')" style="color: var(--primary); border-color: var(--primary);">
+                            <button class="btn-secondary btn-ver-historico" type="button" style="color: var(--primary); border-color: var(--primary);">
                                 📖 Ver Histórico
                             </button>
                         </td>
                     `;
+                    const btnHistorico = tr.querySelector('.btn-ver-historico');
+                    if (btnHistorico) {
+                        btnHistorico.addEventListener('click', () => window.abrirHistorico(paciente.nome));
+                    }
                     tabelaCrud.appendChild(tr);
                 });
             }
