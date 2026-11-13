@@ -119,11 +119,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnBuscarPaciente.disabled = true;
 
             try {
-                const { data, error } = await window.clienteSupabase
+                const docApenasNumeros = docBusca.replace(/\D/g, '');
+                const docFormatado = window.formatarCPF ? window.formatarCPF(docApenasNumeros) : docBusca;
+
+                const { data: listaEncontrada, error } = await window.clienteSupabase
                     .from('pacientes')
                     .select('*')
-                    .eq('documento', docBusca)
-                    .single(); // Puxa apenas 1 registo
+                    .in('documento', [docBusca, docFormatado, docApenasNumeros])
+                    .limit(1);
+
+                const data = listaEncontrada && listaEncontrada.length > 0 ? listaEncontrada[0] : null;
 
                 if (data) {
                     // Preenche os campos automaticamente

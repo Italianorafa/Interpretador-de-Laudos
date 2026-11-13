@@ -129,6 +129,38 @@ window.alert = function(mensagem) {
 };
 
 // ==========================================
+// 0.05 UTILITÁRIOS DE SEGURANÇA (XSS) E MÁSCARAS DE INPUT
+// ==========================================
+window.escaparHTML = function(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
+window.formatarCPF = function(valor) {
+    const digitos = String(valor || '').replace(/\D/g, '').slice(0, 11);
+    return digitos
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+};
+
+window.formatarTelefone = function(valor) {
+    const digitos = String(valor || '').replace(/\D/g, '').slice(0, 11);
+    if (digitos.length <= 10) {
+        return digitos
+            .replace(/(\d{2})(\d)/, '($1) $2')
+            .replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    return digitos
+        .replace(/(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{5})(\d)/, '$1-$2');
+};
+
+// ==========================================
 // 0.1 GERADOR DE DOCUMENTO CLÍNICO PARA IMPRESSÃO / PDF (A4)
 // ==========================================
 window.imprimirRelatorioClinico = function({
@@ -343,9 +375,25 @@ window.verificarAutenticacao = async function() {
 };
 
 // ==========================================
-// 3. EVENTOS DE TELA (BOTÕES DE SAIR E PERFIL)
+// 3. EVENTOS DE TELA (BOTÕES DE SAIR, PERFIL E MÁSCARAS)
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
+    // Aplica máscaras automáticas de CPF e Telefone nos campos do sistema
+    ['recDocumento', 'documentoPaciente', 'perfilCpf'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', (e) => {
+                e.target.value = window.formatarCPF(e.target.value);
+            });
+        }
+    });
+
+    const inputContato = document.getElementById('recContato');
+    if (inputContato) {
+        inputContato.addEventListener('input', (e) => {
+            e.target.value = window.formatarTelefone(e.target.value);
+        });
+    }
     
     // Interceta todos os botões de logout do sistema e força-os a usar a via segura
     const botoesSair = document.querySelectorAll('#btnSair, #botaoLogout, .btn-logout');
