@@ -173,7 +173,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             card.innerHTML = `
                 <div class="timeline-header">
                     <div class="timeline-date">📅 ${dataFormatada} às ${horaFormatada}</div>
-                    <span class="badge-consultas">${consulta.nome_medico || nomeFormatadoLogado}</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="badge-consultas">${consulta.nome_medico || nomeFormatadoLogado}</span>
+                        <button type="button" class="btn-secondary btn-imprimir-card" style="padding: 5px 12px; font-size: 12px;">🖨️ Imprimir / PDF</button>
+                    </div>
                 </div>
                 <div class="timeline-body">
                     <p><strong>Queixa / Anamnese:</strong><br>${anamneseLimpa.replace(/\n/g, '<br>')}</p>
@@ -183,6 +186,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                 </div>
             `;
+            const btnPrint = card.querySelector('.btn-imprimir-card');
+            if (btnPrint) {
+                btnPrint.addEventListener('click', () => {
+                    window.imprimirRelatorioClinico({
+                        nomePaciente: paciente.nome,
+                        cpf: paciente.cpf,
+                        idade: paciente.idade,
+                        sexo: '---',
+                        dataConsulta: `${dataFormatada} às ${horaFormatada}`,
+                        medico: consulta.nome_medico || nomeFormatadoLogado,
+                        crmClinica: medicoCrm,
+                        anamnese: anamneseLimpa,
+                        diagnostico: consulta.diagnostico_ia || ''
+                    });
+                });
+            }
             timeline.appendChild(card);
         });
 

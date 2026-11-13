@@ -129,6 +129,108 @@ window.alert = function(mensagem) {
 };
 
 // ==========================================
+// 0.1 GERADOR DE DOCUMENTO CLÍNICO PARA IMPRESSÃO / PDF (A4)
+// ==========================================
+window.imprimirRelatorioClinico = function({
+    nomePaciente = 'Não informado',
+    cpf = '---',
+    idade = '---',
+    sexo = '---',
+    dataConsulta = new Date().toLocaleString('pt-BR'),
+    medico = 'Médico Responsável',
+    crmClinica = '---',
+    anamnese = '',
+    diagnostico = ''
+}) {
+    const janela = window.open('', '_blank', 'width=850,height=900');
+    if (!janela) {
+        window.mostrarAlerta('Por favor, permita pop-ups no navegador para gerar o PDF de impressão.', 'aviso');
+        return;
+    }
+
+    const diagHtml = String(diagnostico || '')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    const anamneseHtml = String(anamnese || '').replace(/\n/g, '<br>');
+
+    janela.document.write(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <title>Relatório Clínico - ${nomePaciente}</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+                body { color: #1e293b; padding: 40px; line-height: 1.6; background: #fff; }
+                .doc-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1d4ed8; padding-bottom: 16px; margin-bottom: 24px; }
+                .doc-brand h1 { color: #1d4ed8; font-size: 22px; }
+                .doc-brand p { color: #64748b; font-size: 12.5px; }
+                .doc-meta { text-align: right; font-size: 12.5px; color: #475569; }
+                .patient-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; font-size: 13.5px; }
+                .patient-box div strong { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; }
+                .section-block { margin-bottom: 22px; }
+                .section-block h2 { font-size: 14.5px; text-transform: uppercase; color: #1d4ed8; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 10px; letter-spacing: 0.4px; }
+                .section-content { font-size: 14px; color: #1e293b; background: #fff; padding: 8px 2px; }
+                .ia-content { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; font-size: 14px; }
+                .signature-area { margin-top: 60px; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 13px; color: #475569; }
+                .signature-line { border-top: 1px solid #334155; width: 280px; text-align: center; padding-top: 8px; }
+                @media print {
+                    body { padding: 15px; }
+                    .no-print { display: none !important; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="doc-header">
+                <div class="doc-brand">
+                    <h1>⚕️ CDSS — Relatório de Atendimento Clínico</h1>
+                    <p>Sistema de Suporte à Decisão Clínica & Prontuário Eletrônico</p>
+                </div>
+                <div class="doc-meta">
+                    <div><strong>ID Clínica / CRM:</strong> ${crmClinica}</div>
+                    <div><strong>Data do Atendimento:</strong> ${dataConsulta}</div>
+                </div>
+            </div>
+
+            <div class="patient-box">
+                <div><strong>Paciente</strong>${nomePaciente}</div>
+                <div><strong>CPF / Documento</strong>${cpf || '---'}</div>
+                <div><strong>Idade</strong>${idade || '---'}</div>
+                <div><strong>Sexo</strong>${sexo || '---'}</div>
+            </div>
+
+            <div class="section-block">
+                <h2>Queixa Principal / Anamnese</h2>
+                <div class="section-content">${anamneseHtml || 'Não informada.'}</div>
+            </div>
+
+            <div class="section-block">
+                <h2>Avaliação Clínica e Conduta Terapêutica</h2>
+                <div class="ia-content">${diagHtml || 'Sem parecer registado.'}</div>
+            </div>
+
+            <div class="signature-area">
+                <div>Documento gerado eletronicamente em ${new Date().toLocaleString('pt-BR')}</div>
+                <div class="signature-line">
+                    <strong>${medico}</strong><br>
+                    <span>CRM / Clínica: ${crmClinica}</span>
+                </div>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { window.print(); }, 250);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    janela.document.close();
+};
+
+// ==========================================
 // 1. LOGOUT SEGURO E GLOBAL
 // ==========================================
 // Criamos uma função global que obriga o navegador a esperar a sessão ser apagada ANTES de mudar de ecrã

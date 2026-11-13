@@ -30,6 +30,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const chatHistory = document.getElementById('chatHistory');
     const chatInput = document.getElementById('chatInput');
     const btnEnviarChat = document.getElementById('btnEnviarChat');
+    const btnImprimirConsulta = document.getElementById('btnImprimirConsulta');
+
+    if (btnImprimirConsulta) {
+        btnImprimirConsulta.addEventListener('click', () => {
+            window.imprimirRelatorioClinico({
+                nomePaciente: inputNome && inputNome.value ? inputNome.value.trim() : 'Paciente não identificado',
+                cpf: inputDocumento && inputDocumento.value ? inputDocumento.value.trim() : '---',
+                idade: inputIdade && inputIdade.value ? inputIdade.value : '---',
+                sexo: selectSexo && selectSexo.value ? selectSexo.value : '---',
+                dataConsulta: new Date().toLocaleString('pt-BR'),
+                medico: nomeFormatadoLogado,
+                crmClinica: medicoCrm,
+                anamnese: inputAnamnese ? inputAnamnese.value.trim() : '',
+                diagnostico: divResultadoTexto ? divResultadoTexto.innerHTML : ''
+            });
+        });
+    }
 
     // Histórico de mensagens para manter o contexto no chat clínico
     let historicoConversaIA = [];
