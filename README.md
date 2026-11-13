@@ -71,7 +71,7 @@ Interpretador-de-Laudos/
 
 1. Clone este repositório:
    ```bash
-   git clone https://github.com/SEU-USUARIO/Interpretador-de-Laudos.git
+   git clone https://github.com/Italianorafa/Interpretador-de-Laudos
    cd Interpretador-de-Laudos
    ```
 2. Sirva os arquivos com qualquer servidor HTTP estático (por exemplo, a extensão **Live Server** do VS Code, `npx serve .` ou `python -m http.server 8000`) ou abra o `index.html` no navegador.
