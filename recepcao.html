@@ -67,6 +67,15 @@
                         <input type="text" id="recMedicoSelecionado" list="listaMedicosDatalist" placeholder="Digite para buscar...">
                         <datalist id="listaMedicosDatalist"></datalist>
                     </div>
+                    <div class="col-span-2">
+                        <label for="recPrioridade">Classificação de Risco (Triagem de Manchester):</label>
+                        <select id="recPrioridade">
+                            <option value="Verde">🟢 Pouco Urgente (Verde - Atendimento Normal)</option>
+                            <option value="Amarelo">🟡 Urgente (Amarelo - Prioridade Moderada)</option>
+                            <option value="Laranja">🟠 Muito Urgente (Laranja - Alta Prioridade)</option>
+                            <option value="Vermelho">🔴 Emergência (Vermelho - Atendimento Imediato)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div>

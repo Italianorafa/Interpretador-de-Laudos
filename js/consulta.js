@@ -81,8 +81,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (matchSexo && selectSexo) selectSexo.value = matchSexo[1].trim(); 
 
                 // Limpa as tags estruturais para a leitura médica ficar mais limpa
-                textoProntuario = textoProntuario.replace(/\[MÉDICO ALOCADO:.*?\]\n*/g, '');
-                textoProntuario = textoProntuario.replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/g, '');
+                textoProntuario = textoProntuario.replace(/\[MÉDICO ALOCADO:.*?\]\n*/gi, '');
+                textoProntuario = textoProntuario.replace(/\[PRIORIDADE:.*?\]\n*/gi, '');
+                textoProntuario = textoProntuario.replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/gi, '');
                 textoProntuario = textoProntuario.replace(/Documento:[^\n]*\n?/g, '');
                 textoProntuario = textoProntuario.replace(/Nascimento:[^\n]*\n?/g, '');
                 textoProntuario = textoProntuario.replace(/Sexo:[^\n]*\n?/g, ''); 

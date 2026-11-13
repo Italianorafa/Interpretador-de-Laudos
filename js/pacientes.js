@@ -151,8 +151,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
             let anamneseLimpa = consulta.anamnese || '';
-            anamneseLimpa = anamneseLimpa.replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/g, '');
-            anamneseLimpa = anamneseLimpa.replace(/\[MÉDICO ALOCADO:.*?\]\n*/g, '');
+            anamneseLimpa = anamneseLimpa.replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/gi, '');
+            anamneseLimpa = anamneseLimpa.replace(/\[MÉDICO ALOCADO:.*?\]\n*/gi, '');
+            anamneseLimpa = anamneseLimpa.replace(/\[PRIORIDADE:.*?\]\n*/gi, '');
             anamneseLimpa = anamneseLimpa.replace(/Documento:[^\n]*\n?/g, '');
             anamneseLimpa = anamneseLimpa.replace(/Nascimento:[^\n]*\n?/g, '');
             anamneseLimpa = anamneseLimpa.replace(/Sexo:[^\n]*\n?/g, '');

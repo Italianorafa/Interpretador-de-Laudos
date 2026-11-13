@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     const inputMedico = document.getElementById('recMedicoSelecionado');
     const datalistMedicos = document.getElementById('listaMedicosDatalist');
+    const selectPrioridade = document.getElementById('recPrioridade');
     
     const inputMotivo = document.getElementById('recMotivo');
     const btnSalvar = document.getElementById('btnSalvarAdmissao');
@@ -154,6 +155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const nascimento = inputNascimento && inputNascimento.value ? inputNascimento.value : null;
             const sexo = selectSexo && selectSexo.value ? selectSexo.value : null;
             const contato = inputContato ? inputContato.value.trim() : null;
+            const prioridade = selectPrioridade && selectPrioridade.value ? selectPrioridade.value : 'Verde';
             const motivo = inputMotivo ? inputMotivo.value.trim() : 'Sem motivo registado';
             let medicoSelecionado = inputMedico ? inputMedico.value.trim() : null; 
 
@@ -199,10 +201,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 // ETAPA B: ENVIAR PARA A FILA DE ESPERA
-                let textoTriagem = `[TRIAGEM/RECEPÇÃO]\nDocumento: ${documento || 'Não informado'}\nNascimento: ${nascimento || 'Não informada'}\nSexo: ${sexo || 'Não informado'}\nContato: ${contato || 'Não informado'}\nMotivo: ${motivo}`;
+                let textoTriagem = `[PRIORIDADE: ${prioridade}]\n[TRIAGEM/RECEPÇÃO]\nDocumento: ${documento || 'Não informado'}\nNascimento: ${nascimento || 'Não informada'}\nSexo: ${sexo || 'Não informado'}\nContato: ${contato || 'Não informado'}\nMotivo: ${motivo}`;
                 
                 if (medicoSelecionado) {
-                    textoTriagem = `[MÉDICO ALOCADO: ${medicoSelecionado}]\n\n` + textoTriagem;
+                    textoTriagem = `[MÉDICO ALOCADO: ${medicoSelecionado}]\n` + textoTriagem;
                 }
 
                 const dadosInsercao = {
@@ -228,6 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (inputContato) inputContato.value = '';
                 if (inputMotivo) inputMotivo.value = '';
                 if (inputMedico) inputMedico.value = '';
+                if (selectPrioridade) selectPrioridade.value = 'Verde';
 
             } catch (error) {
                 console.error("Erro ao enviar paciente:", error);

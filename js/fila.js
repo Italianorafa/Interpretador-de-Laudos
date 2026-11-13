@@ -12,6 +12,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const nomeUsuarioLogado = metadata.nome_completo;
     const crmPessoalLogado = (metadata.crm_pessoal || '').trim().toLowerCase();
     const nomeFormatadoLogado = nomeUsuarioLogado ? `Dr(a). ${nomeUsuarioLogado}` : "Médico Titular";
+
+    // Pesos e estilos do Protocolo de Manchester
+    const mapaPrioridades = {
+        'Vermelho': { peso: 4, label: '🔴 Emergência', corFundo: '#fee2e2', corTexto: '#991b1b', corBorda: '#ef4444' },
+        'Laranja':  { peso: 3, label: '🟠 Muito Urgente', corFundo: '#ffedd5', corTexto: '#9a3412', corBorda: '#f97316' },
+        'Amarelo':  { peso: 2, label: '🟡 Urgente', corFundo: '#fef3c7', corTexto: '#92400e', corBorda: '#f59e0b' },
+        'Verde':    { peso: 1, label: '🟢 Pouco Urgente', corFundo: '#dcfce7', corTexto: '#166534', corBorda: '#10b981' }
+    };
+
+    function extrairPrioridade(anamnese) {
+        if (!anamnese) return 'Verde';
+        const match = anamnese.match(/\[PRIORIDADE:\s*(.*?)\]/i);
+        if (match && mapaPrioridades[match[1].trim()]) {
+            return match[1].trim();
+        }
+        return 'Verde';
+    }
     
     window.carregarFila = async function() {
         const grid = document.getElementById('gridFilaEspera');
@@ -62,6 +79,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return true;
             });
 
+            // Ordena primeiro pela gravidade (Manchester) e depois pela hora de chegada
+            pacientesParaMim.sort((a, b) => {
+                const pesoA = mapaPrioridades[extrairPrioridade(a.anamnese)].peso;
+                const pesoB = mapaPrioridades[extrairPrioridade(b.anamnese)].peso;
+                if (pesoB !== pesoA) return pesoB - pesoA;
+                return new Date(a.created_at) - new Date(b.created_at);
+            });
+
             // ==========================================
             // RENDERIZAR A TELA
             // ==========================================
@@ -79,14 +104,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const dataChegada = new Date(paciente.created_at);
                 const horaFormatada = dataChegada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+                const chavePrioridade = extrairPrioridade(paciente.anamnese);
+                const infoPrioridade = mapaPrioridades[chavePrioridade];
+
                 let medicoAlocado = "Fila Geral";
                 if (paciente.anamnese && paciente.anamnese.includes('[MÉDICO ALOCADO:')) {
                     const match = paciente.anamnese.match(/\[MÉDICO ALOCADO:\s(.*?)\]/);
                     if (match) medicoAlocado = match[1];
                 }
 
+                // Limpa as tags técnicas de cabeçalho apenas na visualização do card
+                const resumoTriagem = (paciente.anamnese || '')
+                    .replace(/\[MÉDICO ALOCADO:.*?\]\n*/gi, '')
+                    .replace(/\[PRIORIDADE:.*?\]\n*/gi, '')
+                    .replace(/\[TRIAGEM\/RECEPÇÃO\]\n*/gi, '')
+                    .trim();
+
                 const card = document.createElement('div');
                 card.className = 'queue-card';
+                card.style.borderLeft = `5px solid ${infoPrioridade.corBorda}`;
                 
                 const botaoAtendimentoHtml = (nivelAcesso === 'Leitura' || nivelAcesso === 'Administrativo')
                     ? ''
@@ -96,15 +132,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 card.innerHTML = `
                     <div>
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px;">
                             <h3 style="margin: 0; color: var(--primary); font-size: 17px;">${paciente.nome_paciente}</h3>
-                            <span class="badge-consultas" style="background: #fef2f2; color: #991b1b; white-space: nowrap;">Chegou às ${horaFormatada}</span>
+                            <span class="badge-consultas" style="background: ${infoPrioridade.corFundo}; color: ${infoPrioridade.corTexto}; white-space: nowrap;">
+                                ${infoPrioridade.label}
+                            </span>
                         </div>
-                        <div style="font-size: 13.5px; color: var(--text-main); margin-bottom: 10px;">
-                            <strong>Direcionado a:</strong> <span style="color: var(--primary); font-weight: 600;">${medicoAlocado}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-main); margin-bottom: 10px;">
+                            <span><strong>Médico:</strong> <span style="color: var(--primary); font-weight: 600;">${medicoAlocado}</span></span>
+                            <span style="color: var(--text-muted); font-size: 12px;">🕒 ${horaFormatada}</span>
                         </div>
                         <div style="font-size: 13px; color: var(--text-muted); background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); max-height: 95px; overflow-y: auto; margin-bottom: 16px;">
-                            ${paciente.anamnese.replace(/\n/g, '<br>')}
+                            ${resumoTriagem.replace(/\n/g, '<br>')}
                         </div>
                     </div>
                     ${botaoAtendimentoHtml}
